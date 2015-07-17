@@ -7,42 +7,32 @@ require_once 'CleanCodeClass.php';
 
 class View extends CleanCodeClass
 {
+	private $ext = '.phtml';
+	
 	private static $data = array(
 			'projectName' => '(Project)',
 			'lang' => 'pt-br',
 			'baseHref' => '',
 			'title' => '',
-			'meta' => array(),
 			'css' => array(),
 			'js' => array(),
-			'html' => array());
+			'meta' => array(),
+			'view' => ''
+	);
 	
-	private static $aliases = array();
+	private static $template = '';
 	
-	private $vars = array();
-	private $template = '';
+	function __construct($data)
+	{
+		foreach ($data as $var => $value)
+		{
+			self::$data[$var] = $value;
+		}
+	}
 	
 	public static function setProjectName($name)
 	{
 		self::$data['projectName'] = $name;
-	}
-	
-	private function convertPath($path)
-	{
-		if(strstr($path, ':'))
-		{
-			$parts = explode(':', $path);
-			return self::searchPos($parts[0], self::$aliases) . $parts[1];
-		}
-		else
-		{
-			return $path;
-		}
-	}
-	
-	public static function setAlias($alias, $path)
-	{
-		self::$aliases[$alias] = $path;
 	}
 	
 	public static function setBaseHref($url)
@@ -50,69 +40,26 @@ class View extends CleanCodeClass
 		self::$data['baseHref'] = $url;
 	}
 	
-	public function setTitle($title)
+	public static function setTemplate($folderName)
 	{
-		self::$data['title'] = $title;
-	}
-	
-	public function addVar($var, $value)
-	{
-		$this->vars[$var] = $value;
-	}
-	
-	public function addVars($arrayData)
-	{
-		foreach ($arrayData as $var => $value)
-		{
-			self::addVar($var, $value);
-		}
-	}
-	
-	public function addCSS($href, $params = '')
-	{
-		$href = $this->convertPath($href);
-		self::$data['css'][$href] = $params;
-	}
-	
-	public function addJS($src, $params = '')
-	{
-		$src = $this->convertPath($src);
-		self::$data['js'][$src] = $params;
-	}
-	
-	public function addHTML($path, $name = 'content')
-	{
-		$path = $this->convertPath($path);
-		
-		if(file_exists($path))
-		{
-			self::$data['html'][$name] = $path;
-		}
-		else
-		{
-			echo $path . ' não encontrado.';
-		}
-	}
-	
-	public function setTemplate($folder)
-	{
-		$path = self::convertPath('templates:'.$folder.'/');
-		self::setAlias('template', $path);
-		$this->template = $path . $folder . '.phtml';
+		self::$template = self::convertPath('templates:' . $folderName . '/template.phtml');
 	}
 	
 	public function show()
 	{
-		if($this->template && file_exists($this->template))
+		extract(self::$data);
+		
+		if(self::$template && file_exists(self::$template))
 		{
-			extract($this->vars);
-			extract(self::$data);
-			
-			include $this->template;
+			include self::$template;
+		}
+		else if($view && file_exists($view))
+		{
+			include $view;
 		}
 		else
 		{
-			echo json_encode($this->vars);
+			echo 'View não encontrada!';
 		}
 	}
 	
