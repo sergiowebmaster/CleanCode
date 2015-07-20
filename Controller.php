@@ -4,8 +4,6 @@
  */
 
 require_once 'CleanCodeClass.php';
-require_once 'DAO.php';
-require_once 'View.php';
 
 class Controller extends CleanCodeClass
 {
@@ -19,11 +17,11 @@ class Controller extends CleanCodeClass
 	
 	protected static function get($var, $default = '')
 	{
-		return self::searchPos($var, $_GET, $default);
+		return self::searchIn($_GET, $var, $default);
 	}
 	
 	protected static function post($var, $default = '')
 	{
-		return self::searchPos($var, $_POST, $default);
+		return self::searchIn($_POST, $var, $default);
 	}
 }

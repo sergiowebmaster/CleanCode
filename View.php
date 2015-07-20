@@ -4,6 +4,7 @@
  */
 
 require_once 'CleanCodeClass.php';
+require_once 'Dir.php';
 
 class View extends CleanCodeClass
 {
@@ -42,7 +43,7 @@ class View extends CleanCodeClass
 	
 	public static function setTemplate($folderName)
 	{
-		self::$template = self::convertPath('templates:' . $folderName . '/template.phtml');
+		self::$template = Dir::getPath('templates:'.$folderName.'/template.phtml');
 	}
 	
 	public function show()

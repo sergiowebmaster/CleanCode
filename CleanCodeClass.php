@@ -5,11 +5,11 @@
 
 class CleanCodeClass
 {
-	private static $aliases = array();
+	const VERSION = 'beta';
 	
-	protected static function searchPos($pos, $array, $default = '')
+	protected static function searchIn($array, $index, $default = '')
 	{
-		return isset($array[$pos])? $array[$pos] : $default;
+		return isset($array[$index])? $array[$index] : $default;
 	}
 	
 	protected static function parseVar($text)
@@ -23,23 +23,5 @@ class CleanCodeClass
 		}
 		
 		return $result;
-	}
-	
-	public static function addAlias($alias, $path)
-	{
-		self::$aliases[$alias] = $path;
-	}
-	
-	protected static function convertPath($path)
-	{
-		if(strstr($path, ':'))
-		{
-			$parts = explode(':', $path);
-			return self::searchPos($parts[0], self::$aliases) . $parts[1];
-		}
-		else
-		{
-			return $path;
-		}
 	}
 }

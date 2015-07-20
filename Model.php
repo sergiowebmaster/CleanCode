@@ -11,7 +11,7 @@ class Model extends CleanCodeClass
 	
 	protected $action = '';
 	
-	const ALL	 	= '/\w{1,}/i';
+	const ALL	 	= '/\w{min,max}/i';
 	const NAME	 	= '/^([aáàâãbcçdeéêfghiíjklmnoóôõöpqrstuúüvwxyz]{2,})+( [aáàâãbcçdeéêfghiíjklmnoóôõöpqrstuúüvwxyz]{2,}){0,}$/i';
 	const FULLNAME = '/^([aáàâãbcçdeéêfghiíjklmnoóôõöpqrstuúüvwxyz]{2,})+( [aáàâãbcçdeéêfghiíjklmnoóôõöpqrstuúüvwxyz]{2,}){1,}$/i';
 	const LOGIN 	= '/^\w{1,}$/';
@@ -20,7 +20,7 @@ class Model extends CleanCodeClass
 	const EMAIL	 	= '/^[_a-z0-9-]+(\.[_a-z0-9-]+)*@[a-z0-9-]+(\.[a-z0-9-]+)*(\.[a-z]{2,3})$/';
 	const DATE  	= '/^\d{2}\/\d{2}\/\d{4}$/';
 	const PWD	 	= '/^[a-z0-9#@!?\.]{6,10}$/';
-	const NUM	 	= '/^\d{1,}$/';
+	const NUM	 	= '/^\d{min,max}$/';
 	const FILE	 	= '/^([\w_\-]{1,})+(\.\w{2,5})$/';
 	
 	public function getError()
@@ -36,9 +36,9 @@ class Model extends CleanCodeClass
 		}
 	}
 	
-	protected static function validate($value, $regex)
+	protected static function validate($value, $regex, $min = 0, $max = '')
 	{
-		return preg_match($regex, $value);
+		return preg_match(str_replace('{min,max}', '{'.$min.','.$max.'}', $regex), $value);
 	}
 	
 	protected function setAction($action)

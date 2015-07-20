@@ -24,19 +24,7 @@ class DAO extends Model
 	
 	protected function get($field)
 	{
-		return self::searchPos($field, $this->data);
-	}
-	
-	protected function set($field, $value, $regex, $required = true)
-	{
-		if((!$value && !$required) || $this->validate($value, $regex))
-		{
-			$this->data[$field] = $value;
-		}
-		else
-		{
-			$this->setError('Preencha corretamente o campo "'.$field.'"!');
-		}
+		return self::searchIn($this->data, $field);
 	}
 	
 	public function getData()
