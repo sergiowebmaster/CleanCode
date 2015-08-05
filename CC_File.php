@@ -3,9 +3,9 @@
  *@author Sérgio Eduardo Pinheiro Gomes <sergioeduardo1981@gmail.com>
  */
 
-require_once 'Model.php';
+require_once 'CC_Model.php';
 
-class File extends Model
+class CC_File extends CC_Model
 {
 	private static $path = '';
 	
@@ -37,7 +37,10 @@ class File extends Model
 	
 	public function setName($name)
 	{
-		$this->setField('name', $name, self::ALL);
+		if($this->validate($name, self::ALL))
+		{
+			$this->name = $name;
+		}
 	}
 	
 	public function getTmp()
@@ -45,9 +48,12 @@ class File extends Model
 		return $this->tmp;
 	}
 	
-	protected function setTmp($tmp)
+	public function setTmp($tmp)
 	{
-		$this->setField('tmp', $tmp, self::ALL);
+		if($this->validate($tmp, self::ALL))
+		{
+			$this->tmp = $tmp;
+		}
 	}
 	
 	public function loadData($files)

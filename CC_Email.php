@@ -3,9 +3,9 @@
  *@author Sérgio Eduardo Pinheiro Gomes <sergioeduardo1981@gmail.com>
  */
 
-require_once 'Model.php';
+require_once 'CC_Model.php';
 
-class Email extends Model
+class CC_Email extends CC_Model
 {
 	protected $to		= '';
 	protected $name	= '';

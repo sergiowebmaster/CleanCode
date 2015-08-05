@@ -4,11 +4,11 @@
  */
 
 require_once 'CleanCodeClass.php';
-require_once 'Dir.php';
+require_once 'CC_Dir.php';
 
-class View extends CleanCodeClass
+class CC_View extends CleanCodeClass
 {
-	private $ext = '.phtml';
+	private static $ext = '.phtml';
 	
 	private static $data = array(
 			'projectName' => '(Project)',
@@ -43,24 +43,21 @@ class View extends CleanCodeClass
 	
 	public static function setTemplate($folderName)
 	{
-		self::$template = Dir::getPath('templates:'.$folderName.'/template.phtml');
+		$data = explode(':', $folderName);
+		
+		if(!isset($data[1])) $data[1] = 'template';
+		
+		$themePath = CC_Dir::getPath('themes:' . $data[0].'/');
+		CC_Dir::addAlias('theme', $themePath);
+		self::$template = CC_Dir::getPath('theme:' . $data[1] . self::$ext);
 	}
 	
 	public function show()
 	{
-		extract(self::$data);
-		
 		if(self::$template && file_exists(self::$template))
 		{
+			extract(self::$data);
 			include self::$template;
-		}
-		else if($view && file_exists($view))
-		{
-			include $view;
-		}
-		else
-		{
-			echo 'View não encontrada!';
 		}
 	}
 	

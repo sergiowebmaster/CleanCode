@@ -9,12 +9,12 @@ class CleanCodeClass
 	
 	protected static function searchIn($array, $index, $default = '')
 	{
-		return isset($array[$index])? $array[$index] : $default;
+		return $index? isset($array[$index])? $array[$index] : $default : $array;
 	}
 	
 	protected static function parseVar($text)
 	{
-		$parts	= explode('_', $text);
+		$parts	= preg_split('/[^a-z0-9]/i', $text, 0, PREG_SPLIT_NO_EMPTY);
 		$result = '';
 		
 		foreach($parts as $part)

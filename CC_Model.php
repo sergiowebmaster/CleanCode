@@ -5,7 +5,7 @@
 
 require_once 'CleanCodeClass.php';
 
-class Model extends CleanCodeClass
+class CC_Model extends CleanCodeClass
 {
 	private $error = '';
 	
@@ -14,14 +14,14 @@ class Model extends CleanCodeClass
 	const ALL	 	= '/\w{min,max}/i';
 	const NAME	 	= '/^([aáàâãbcçdeéêfghiíjklmnoóôõöpqrstuúüvwxyz]{2,})+( [aáàâãbcçdeéêfghiíjklmnoóôõöpqrstuúüvwxyz]{2,}){0,}$/i';
 	const FULLNAME = '/^([aáàâãbcçdeéêfghiíjklmnoóôõöpqrstuúüvwxyz]{2,})+( [aáàâãbcçdeéêfghiíjklmnoóôõöpqrstuúüvwxyz]{2,}){1,}$/i';
-	const LOGIN 	= '/^\w{1,}$/';
-	const URI 	 	= '/^[a-z0-9\-\/_]{1,}$/';
+	const LOGIN 	= '/^\w{min,max}$/';
+	const URI 	 	= '/^[a-z0-9\-\/_]{min,max}$/';
 	const URL	 	= '/^(http|https)+(:\/\/)+(www\.|)+([a-z0-9\.]{5,})$/';
 	const EMAIL	 	= '/^[_a-z0-9-]+(\.[_a-z0-9-]+)*@[a-z0-9-]+(\.[a-z0-9-]+)*(\.[a-z]{2,3})$/';
 	const DATE  	= '/^\d{2}\/\d{2}\/\d{4}$/';
-	const PWD	 	= '/^[a-z0-9#@!?\.]{6,10}$/';
+	const PWD	 	= '/^[a-z0-9]{min,max}$/';
 	const NUM	 	= '/^\d{min,max}$/';
-	const FILE	 	= '/^([\w_\-]{1,})+(\.\w{2,5})$/';
+	const FILE	 	= '/^([\w_\-]{min,max})+(\.\w{2,5})$/';
 	
 	public function getError()
 	{
@@ -36,44 +36,38 @@ class Model extends CleanCodeClass
 		}
 	}
 	
-	protected static function validate($value, $regex, $min = 0, $max = '')
+	protected static function validate($value, $regex, $min = 1, $max = '')
 	{
-		return preg_match(str_replace('{min,max}', '{'.$min.','.$max.'}', $regex), $value);
-	}
-	
-	protected function setAction($action)
-	{
-		$this->action = addslashes($action);
+		return preg_match(str_replace('{min,max}', '{'.$min.','.$max.'}', $regex), addslashes($value));
 	}
 	
 	public function load($data)
 	{
 		foreach ($data as $field => $value)
 		{
-			$setter = 'set'.ucfirst($field);
+			$method = 'set' . self::parseVar($field);
 			
-			if(method_exists($this, $setter))
+			if(method_exists($this, $method))
 			{
-				$this->$setter(addslashes($value));
+				$this->$method($value);
 			}
 		}
 	}
 	
-	public function getData()
+	public function loadByForm()
 	{
-		$data = array();
-		
-		foreach ($this as $field => $value)
-		{
-			$data[$field] = $value;
-		}
-		
-		return $data;
+		$this->load($_POST);
+		$this->load($_FILES);
 	}
 	
 	protected function selectAction($action)
 	{
 		echo 'Nenhuma implementação para "'.$action.'"!';
+	}
+	
+	protected function setAction($action)
+	{
+		$this->action = addslashes($action);
 	}
 	
 	public function doAction()

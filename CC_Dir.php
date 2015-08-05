@@ -5,7 +5,7 @@
 
 require_once 'CleanCodeClass.php';
 
-class Dir extends CleanCodeClass
+class CC_Dir extends CleanCodeClass
 {
 	private static $aliases = array();
 	

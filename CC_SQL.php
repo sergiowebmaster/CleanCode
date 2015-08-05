@@ -3,24 +3,26 @@
  *@author Sérgio Eduardo Pinheiro Gomes <sergioeduardo1981@gmail.com>
  */
 
-class SQL
+class CC_SQL
 {
 	private static $connection = array(
-			'host' => 'localhost',
-			'db' => '',
-			'username' => 'root',
-			'passwd' => '');
+		'host' => 'localhost',
+		'db' => '',
+		'username' => 'root',
+		'passwd' => '');
+	
+	private static $debug = false;
 	
 	protected static $pdo;
 	
-	private $table	 = '';
+	private $table = '';
 	private $values = array();
-	private $sql	 = '';
+	private $sql = '';
 	private $executed;
 	
 	public $error = '';
 	
-	private static function connect()
+	public static function connect()
 	{
 		extract(self::$connection);
 		
@@ -35,27 +37,41 @@ class SQL
 		}
 	}
 	
+	public static function debugQueries()
+	{
+		self::$debug = true;
+	}
+	
 	public static function setDB($db, $host = 'localhost')
 	{
 		self::$connection['host']	= $host;
 		self::$connection['db']		= $db;
-		self::connect();
+		
+		if(self::$pdo) self::connect();
 	}
 	
 	public static  function setUser($username, $passwd)
 	{
 		self::$connection['username']	= $username;
 		self::$connection['passwd']		= $passwd;
-		self::connect();
+		
+		if(self::$pdo) self::connect();
 	}
 	
 	public static function create($table)
 	{
 		if(!self::$pdo) die('PDO não conectado!');
-		return new self($table);
+		
+		$query = new self();
+		return $query->setTable($table);
 	}
 	
-	function __construct($table)
+	function __construct($sql = '')
+	{
+		$this->sql = $sql;
+	}
+	
+	public function setTable($table)
 	{
 		$this->table = $table;
 		return $this;
@@ -134,7 +150,7 @@ class SQL
 	
 	public function whereData($data, $separator = 'AND')
 	{
-		return $this->where($this->setData($data, ' '.$separator.' '));
+		return $data? $this->where($this->setData($data, ' '.$separator.' ')) : $this;
 	}
 	
 	public function limit($quantity, $init = 0)
@@ -161,10 +177,34 @@ class SQL
 		return $this;
 	}
 	
+	public function set($query)
+	{
+		$this->sql = $query;
+	}
+	
+	public static function query($sql)
+	{
+		$obj = new self('');
+		$obj->set(self::scape($sql));
+		
+		return $obj;
+	}
+	
 	public function execute()
 	{
 		$this->executed = self::$pdo->prepare($this->sql);
 		$execute = $this->executed->execute($this->values);
+		
+		foreach ($this->values as $field => $value)
+		{
+			if(is_numeric($field)) break;
+			else
+			{
+				$this->executed->bindParam(':'.$field, $value);
+			}
+		}
+		
+		if(self::$debug) echo "<!-- " . $this->sql . " --->\n";
 	
 		$errorInfo = self::$pdo->errorInfo();
 		$this->error = $errorInfo[2];
@@ -172,27 +212,21 @@ class SQL
 		return $execute;
 	}
 	
+	public static function insertId()
+	{
+		return self::$pdo->lastInsertId();
+	}
+	
 	public function fetch()
 	{
 		$this->execute();
-		return $this->executed->fetch(PDO::FETCH_ASSOC);
+		return $this->executed->fetch(PDO::FETCH_OBJ);
 	}
 	
 	public function fetchAll()
 	{
 		$this->execute();
-		return $this->executed->fetchAll(PDO::FETCH_ASSOC);
-	}
-	
-	public function getCount()
-	{
-		$this->fetchAll();
-		return $this->executed->rowCount();
-	}
-	
-	public static function scape($sql)
-	{
-		return preg_replace('/\-{2,}/', '', addslashes($sql));
+		return $this->executed->fetchAll(PDO::FETCH_OBJ);
 	}
 	
 	public function paginate($pageNumber, $amountPerPage)
@@ -201,9 +235,25 @@ class SQL
 		return $this->limit($amountPerPage, $init)->fetchAll();
 	}
 	
+	public function getCount($data = array(), $separator = 'AND')
+	{
+		$result = $this->select('count(*) n')->whereData($data, $separator)->fetch();
+		return $result->n;
+	}
+	
+	public static function scape($sql)
+	{
+		return preg_replace('/\-{2,}/', '', $sql);
+	}
+	
 	public static function closeConnection()
 	{
 		self::$pdo = null;
+	}
+	
+	public function toString()
+	{
+		return $this->sql;
 	}
 }
 ?>
