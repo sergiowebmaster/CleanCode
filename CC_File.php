@@ -7,7 +7,7 @@ require_once 'CC_Model.php';
 
 class CC_File extends CC_Model
 {
-	private static $path = '';
+	protected static $path = '';
 	
 	private $folder = '';
 	private $size = 0;
@@ -64,6 +64,18 @@ class CC_File extends CC_Model
 			$this->setTmp($files['tmp_name']);
 			$this->size = $files['size'];
 		}
+	}
+	
+	public function generateName($size, $ext)
+	{
+		$filename = '';
+		
+		while($filename == '' || file_exists($filename))
+		{
+			$filename = self::getRandomString($size) . '.' . $ext;
+		}
+		
+		$this->setName($filename);
 	}
 	
 	protected function upload()
