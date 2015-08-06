@@ -3,94 +3,55 @@ require_once 'CC_File.php';
 
 class CC_Image extends CC_File
 {
-	private $altura  = 0;
-	private $largura = 0;
+	private $height  = 0;
+	private $width	 = 0;
 	private $maxDim  = 1600;
-	private $thumbs  = array();
 	
-	public function setMaxDim($dimensaoMaxima)
+	public function setMaxDim($maxDimension)
 	{
-		$this->maxDim = $dimensaoMaxima;
+		$this->maxDim = $maxDimension;
 	}
 	
-	public function addThumb($src, $maxDim)
+	private function resize()
 	{
-		$this->thumbs[] = array('src' => $src, 'maxDim' => $maxDim);
-	}
-	
-	private function enviarRedimensionando($src, $maxDim)
-	{
-		if($this->largura < $this->altura)
+		if($this->width < $this->height)
 		{
-			$razao	 = $this->largura/$this->altura;
-			$altura	 = $maxDim;
-			$largura = round($maxDim * $razao);
+			$ratio	 = $this->width / $this->height;
+			$height	 = $this->maxDim;
+			$width	 = round($this->maxDim * $ratio);
 		}
 		else
 		{
-			$razao	 = $this->altura/$this->largura;
-			$altura	 = round($maxDim * $razao);
-			$largura = $maxDim;
+			$ratio	 = $this->height / $this->width;
+			$height	 = round($this->maxDim * $ratio);
+			$width	 = $this->maxDim;
 		}
 		
-		$imagem_nova = imagecreatetruecolor($largura, $altura);
-		$imagem 	 = imagecreatefromjpeg($this->tmp);
+		$newImage = imagecreatetruecolor($width, $height);
+		$image = imagecreatefromjpeg($this->tmp);
 			
-		imagecopyresampled($imagem_nova, $imagem, 0, 0, 0, 0, $largura, $altura, $this->largura, $this->altura);
+		imagecopyresampled($newImage, $image, 0, 0, 0, 0, $width, $height, $this->width, $this->height);
 			
-		return imagejpeg($imagem_nova, self::getCaminho() . $src);
+		return imagejpeg($newImage, $this->getFullPath());
 	}
 	
-	private function criarThumbs()
+	public function generateName($size, $ext = 'jpg')
 	{
-		foreach ($this->thumbs as $thumb)
-		{
-			$this->enviarRedimensionando($thumb['src'], $thumb['maxDim']);
-		}
+		parent::generateName($size, $ext);
 	}
 	
 	protected function upload()
 	{
-		list($this->largura, $this->altura) = getimagesize($this->tmp);
+		list($this->width, $this->height) = getimagesize($this->tmp);
 		
-		if($this->largura > $this->maxDim || $this->altura > $this->maxDim)
+		if($this->width > $this->maxDim || $this->height > $this->maxDim)
 		{
-			$enviou = $this->enviarRedimensionando($this->getNome(), $this->maxDim);
+			return $this->resize();
 		}
 		else
 		{
-			$enviou = parent::upload();
+			return parent::upload();
 		}
-		
-		if($enviou)
-		{
-			$this->criarThumbs();
-		}
-		
-		return $enviou;
-	}
-	
-	private function excluirThumbs()
-	{
-		foreach ($this->thumbs as $thumb)
-		{
-			$arquivo = self::getCaminho() . $thumb['src'];
-			
-			if(file_exists($arquivo))
-			{
-				unlink($arquivo);
-			}
-		}
-	}
-	
-	public function delete()
-	{
-		if(parent::delete())
-		{
-			$this->excluirThumbs();
-			return true;
-		}
-		else {return false;}
 	}
 }
 ?>
