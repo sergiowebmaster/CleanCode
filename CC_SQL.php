@@ -58,7 +58,7 @@ class CC_SQL
 		if(self::$pdo) self::connect();
 	}
 	
-	public static function create($table)
+	public static function useTable($table)
 	{
 		if(!self::$pdo) die('PDO não conectado!');
 		
@@ -235,7 +235,7 @@ class CC_SQL
 		return $this->limit($amountPerPage, $init)->fetchAll();
 	}
 	
-	public function getCount($data = array(), $separator = 'AND')
+	public function selectCount($data = array(), $separator = 'AND')
 	{
 		$result = $this->select('count(*) n')->whereData($data, $separator)->fetch();
 		return $result->n;
