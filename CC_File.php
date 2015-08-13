@@ -160,7 +160,7 @@ class CC_File extends CC_Model
 			header('Content-Type: ' . $this->mimeType);
 			header('Content-Length: ' . filesize($filename));
 			header('Content-Disposition: attachment; filename='.basename($filename));
-			readfile($arquivo);
+			readfile($filename);
 			
 			return true;
 		}
