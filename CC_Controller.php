@@ -34,7 +34,7 @@ class CC_Controller extends CleanCodeClass
 	 * @access protected
 	 * @var array
 	 */
-	private static $rules = array();
+	protected static $rules = array();
 	
 	/*
 	 * Associate a function for validate and check a part of URI.
@@ -45,7 +45,7 @@ class CC_Controller extends CleanCodeClass
 	 */
 	protected function addUriRule($index, $callback)
 	{
-		self::$rules[$index] = $callback;
+		static::$rules[$index] = $callback;
 	}
 	
 	/*
@@ -158,6 +158,19 @@ class CC_Controller extends CleanCodeClass
 		echo 'Nenhuma rota definida!';
 	}
 	
+	public function checkRule($index, $uri)
+	{
+		if(isset(static::$rules[$index]))
+		{
+			$method = static::$rules[$index];
+			return $this->$method($uri);
+		}
+		else
+		{
+			return false;
+		}
+	}
+	
 	/*
 	 * Defines the way of controllers and methods, based in URI.
 	 * @return void
@@ -168,32 +181,23 @@ class CC_Controller extends CleanCodeClass
 		$mask = array();
 		$args = array();
 		
-		foreach (self::$uriVetor as $i => $uri)
+		foreach (self::$uriVetor as $uri)
 		{
 			$class = 'Controller' . self::parseVar($uri);
 			
-			if(isset(self::$rules[$i]) && is_callable(array($controller, self::$rules[$i]), false))
+			if(method_exists($controller, $uri))
 			{
-				$method = self::$rules[$i];
-				
-				if($controller->$method($uri))
-				{
-					$mask[] = '*';
-					$args[] = $uri;
-				}
-				else
-				{
-					$mask[] = $uri;
-				}
+				$mask[] = $uri;
 			}
 			else if(class_exists($class))
 			{
 				$controller = new $class();
-				$mask[]	= $uri;
+				$mask[] = $uri;
 			}
 			else if ($uri)
 			{
-				$mask[] = $uri;
+				$mask[] = '*';
+				$args[] = $uri;
 			}
 		}
 		
