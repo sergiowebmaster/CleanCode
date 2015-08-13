@@ -3,15 +3,15 @@
  *@author Sérgio Eduardo Pinheiro Gomes <sergioeduardo1981@gmail.com>
  */
 
-class CC_SQL
+require_once 'CleanCodeClass.php';
+
+class CC_SQL extends CleanCodeClass
 {
 	private static $connection = array(
 		'host' => 'localhost',
 		'db' => '',
 		'username' => 'root',
 		'passwd' => '');
-	
-	private static $debug = false;
 	
 	protected static $pdo;
 	
@@ -35,11 +35,6 @@ class CC_SQL
 		{
 			die('Erro ao conectar com o Banco de Dados.');
 		}
-	}
-	
-	public static function debugQueries()
-	{
-		self::$debug = true;
 	}
 	
 	public static function setDB($db, $host = 'localhost')
@@ -204,7 +199,7 @@ class CC_SQL
 			}
 		}
 		
-		if(self::$debug) echo "<!-- " . $this->sql . " --->\n";
+		if(self::$debug) echo $this->sql . '<br>';
 	
 		$errorInfo = self::$pdo->errorInfo();
 		$this->error = $errorInfo[2];

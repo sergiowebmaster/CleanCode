@@ -10,10 +10,13 @@ class CC_File extends CC_Model
 	protected static $path = '';
 	
 	private $folder = '';
-	private $size = 0;
+	private $trash= '';
 	
 	protected $name = '';
 	protected $tmp  = '';
+	protected $ext	= '';
+	protected $type = '';
+	protected $size = 0;
 	
 	public static function setPath($path)
 	{
@@ -40,62 +43,132 @@ class CC_File extends CC_Model
 		if($this->validate($name, self::ALL))
 		{
 			$this->name = $name;
+			$this->ext = array_pop(explode('.', $name));
 		}
 	}
 	
-	public function getTmp()
+	public function load($data)
+	{
+		parent::load($data, true);
+	}
+	
+	public function getTmpName()
 	{
 		return $this->tmp;
 	}
 	
-	public function setTmp($tmp)
+	public function setTmpName($tmp)
 	{
-		if($this->validate($tmp, self::ALL))
+		$this->tmp = $tmp;
+	}
+	
+	public function getSize()
+	{
+		return $this->size;
+	}
+	
+	public function setSize($size)
+	{
+		if(is_numeric($size))
 		{
-			$this->tmp = $tmp;
+			$this->size = $size;
 		}
 	}
 	
-	public function loadData($files)
+	public function getType()
 	{
-		if(isset($files['name']))
-		{
-			$this->setName($files['name']);
-			$this->setTmp($files['tmp_name']);
-			$this->size = $files['size'];
-		}
+		return $this->type;
 	}
 	
-	public function generateName($size, $ext)
+	public function setType($type)
 	{
-		$filename = '';
+		$this->type = addslashes($type);
+	}
+	
+	public function generateName($size)
+	{
+		$info = explode('/', $this->type);
 		
-		while($filename == '' || file_exists($filename))
+		if(count($info) == 2)
 		{
-			$filename = self::getRandomString($size) . '.' . $ext;
+			$filename = '';
+			$this->ext = $info[1];
+			
+			while($filename == '' || file_exists($filename))
+			{
+				$filename = self::getRandomString($size) . '.' . $info[1];
+			}
+			
+			$this->name = $filename;
 		}
-		
-		$this->setName($filename);
 	}
 	
 	protected function upload()
 	{
-		return copy($this->tmp, $this->getFullPath());
+		if(copy($this->tmp, $this->getFullPath()))
+		{
+			return true;
+		}
+		else
+		{
+			$this->setError('Não foi possível fazer upload do arquivo!');
+			return false;
+		}
+	}
+	
+	public function replace($name)
+	{
+		$this->trash = static::$path . $this->folder . $name;
+	}
+	
+	private function unlinkFile()
+	{
+		if(@unlink($this->trash))
+		{
+			return true;
+		}
+		else
+		{
+			$this->setError('Falha ao excluir o arquivo!');
+			return false;
+		}
 	}
 	
 	public function delete()
 	{
-		return unlink($this->getFullPath());
+		$this->trash = $this->getFullPath();
+		return $this->unlinkFile();
 	}
 	
 	public function send()
 	{
-		return $this->getError()? false : $this->upload();
+		if($this->trash) $this->unlinkFile();
+		return $this->upload();
 	}
 	
 	public function sendIfHave()
 	{
 		return $this->name? $this->send() : false;
+	}
+	
+	public function download()
+	{
+		$filename = $this->getFullPath();
+		
+		if(file_exists($filename))
+		{
+			header('Content-Type: ' . $this->mimeType);
+			header('Content-Length: ' . filesize($filename));
+			header('Content-Disposition: attachment; filename='.basename($filename));
+			readfile($arquivo);
+			
+			return true;
+		}
+		else
+		{
+			$this->setError('Arquivo "'.$filename.'" não encontrado!');
+			return false;
+		}
 	}
 }
 ?>

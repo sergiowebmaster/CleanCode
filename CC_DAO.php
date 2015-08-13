@@ -10,16 +10,24 @@ class CC_DAO extends CC_Model
 {
 	protected static $table = '';
 	
+	private $filter = array();
+	
 	protected $data = array();
+	
+	public $found = false;
 	
 	protected static function createSQL($alias = '')
 	{
 		return CC_SQL::useTable(static::$table . ($alias? ' '.$alias : ''));
 	}
 	
-	public static function getTable()
+	public static function getTable($alias = '')
 	{
-		return static::$table;
+		$table = static::$table;
+		
+		if($alias) $table .= ' '.$alias;
+		
+		return $table;
 	}
 	
 	protected function get_field($field, $default = '')
@@ -30,6 +38,16 @@ class CC_DAO extends CC_Model
 	public function get()
 	{
 		return (object) $this->data;
+	}
+	
+	protected function clear()
+	{
+		$this->data = array();
+	}
+	
+	protected function isEmptyField($fieldName)
+	{
+		return !isset($this->data[$fieldName]) || $this->data[$fieldName] == '';
 	}
 	
 	protected function validateAndSet($field, $value, $regex, $min = 0, $max = '', $html = false)
@@ -51,6 +69,21 @@ class CC_DAO extends CC_Model
 		return count($this->data) && $this->getError() == '';
 	}
 	
+	public function createFilter()
+	{
+		$this->filter = $this->data;
+	}
+	
+	protected function moveToFilter($field)
+	{
+		if(isset($this->data[$field])) $this->filter[$field] = $this->data[$field];
+	}
+	
+	protected function get_filter()
+	{
+		return $this->filter;
+	}
+	
 	protected static function getSelect($fields = '*')
 	{
 		return self::createSQL()->select($fields);
@@ -63,12 +96,19 @@ class CC_DAO extends CC_Model
 	
 	public function select($fields = '*')
 	{
-		return $this->getSelect()->whereData($this->data)->fetch();
+		return $this->checkData()? $this->getSelect()->whereData($this->data)->fetch() : null;
 	}
 	
 	protected function insert()
 	{
-		return $this->checkData()? self::createSQL()->insert($this->data)->execute() : false;
+		if($this->checkData() && self::createSQL()->insert($this->data)->execute())
+		{
+			return CC_SQL::insertId();
+		}
+		else
+		{
+			return false;
+		}
 	}
 	
 	protected function delete()
@@ -78,17 +118,19 @@ class CC_DAO extends CC_Model
 	
 	protected function update()
 	{
-		$data = $this->data;
-		$filter = count($data) > 1? array_shift($data) : array();
-		
-		return $this->checkData()? self::createSQL()->update($data)->whereData($filter)->execute() : false;
+		return $this->checkData()? self::createSQL()->update($this->data)->whereData($this->filter)->execute() : false;
 	}
 	
 	public function loadByData()
 	{
-		foreach ($this->select() as $field => $value)
+		if($data = $this->select())
 		{
-			$this->data[$field] = $value;
+			$this->found = true;
+			
+			foreach ($this->select() as $field => $value)
+			{
+				$this->data[$field] = $value;
+			}
 		}
 	}
 	

@@ -9,8 +9,6 @@ class CC_Model extends CleanCodeClass
 {
 	private $error = '';
 	
-	protected $action = '';
-	
 	const ALL	 	= '/\w{min,max}/i';
 	const NAME	 	= '/^([aáàâãbcçdeéêfghiíjklmnoóôõöpqrstuúüvwxyz]{2,})+( [aáàâãbcçdeéêfghiíjklmnoóôõöpqrstuúüvwxyz]{2,}){0,}$/i';
 	const FULLNAME = '/^([aáàâãbcçdeéêfghiíjklmnoóôõöpqrstuúüvwxyz]{2,})+( [aáàâãbcçdeéêfghiíjklmnoóôõöpqrstuúüvwxyz]{2,}){1,}$/i';
@@ -36,46 +34,36 @@ class CC_Model extends CleanCodeClass
 		}
 	}
 	
+	protected function isEmptyField($fieldName)
+	{
+		return isset($this->$fieldName) && $this->$fieldName == '';
+	}
+	
 	protected static function validate($value, $regex, $min = 1, $max = '')
 	{
 		return preg_match(str_replace('{min,max}', '{'.$min.','.$max.'}', $regex), addslashes($value));
 	}
 	
-	public function load($data)
+	public function load($data, $overwrite = false)
 	{
 		foreach ($data as $field => $value)
 		{
-			$method = 'set' . self::parseVar($field);
-			
-			if(method_exists($this, $method))
+			if($overwrite || $this->isEmptyField($field))
 			{
-				$this->$method($value);
+				$method = 'set' . self::parseVar($field);
+				
+				if(method_exists($this, $method))
+				{
+					$this->$method($value);
+				}
 			}
 		}
 	}
 	
-	public function loadByForm()
+	public function loadByForm($overwrite = false)
 	{
-		$this->load($_POST);
-		$this->load($_FILES);
-	}
-	
-	protected function selectAction($action)
-	{
-		echo 'Nenhuma implementação para "'.$action.'"!';
-	}
-	
-	protected function setAction($action)
-	{
-		$this->action = addslashes($action);
-	}
-	
-	public function doAction()
-	{
-		if($this->error == '')
-		{
-			$this->selectAction($this->action);
-		}
+		$this->load($_POST, $overwrite);
+		$this->load($_FILES, $overwrite);
 	}
 }
 ?>
