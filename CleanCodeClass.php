@@ -5,7 +5,14 @@
 
 class CleanCodeClass
 {
+	protected static $debug = false;
+	
 	const VERSION = 'beta';
+	
+	public static function debugMode()
+	{
+		self::$debug = true;
+	}
 	
 	protected static function searchIn($array, $index, $default = '')
 	{
