@@ -1,41 +1,31 @@
 <?php
-/*
- *@author Sérgio Eduardo Pinheiro Gomes <sergioeduardo1981@gmail.com>
- */
-
 class CleanCodeClass
 {
 	protected static $debug = false;
 	
-	const VERSION = 'beta';
+	const CC_PHP_VERSION = '5.3';
 	
 	public static function debugMode()
 	{
 		self::$debug = true;
 	}
 	
-	protected static function searchIn($array, $index, $default = '')
+	public static function checkVersion()
 	{
-		return $index? isset($array[$index])? $array[$index] : $default : $array;
-	}
-	
-	protected static function getRandomString($size)
-	{
-		$characters = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
-		$string = '';
-		
-		for ($i = 0; $i < $size; $i++)
+		if(PHP_VERSION < self::CC_PHP_VERSION)
 		{
-			$c = rand(0, strlen($characters));
-			$string .= $characters[$c - 1];
+			die('CleanCode requer PHP 5.3 ou superior. (atual: ' . PHP_VERSION . ')');
 		}
-		
-		return $string;
 	}
 	
-	protected static function parseVar($text)
+	protected static function searchPos($array, $pos, $default = '')
 	{
-		$parts	= preg_split('/[^a-z0-9]/i', $text, 0, PREG_SPLIT_NO_EMPTY);
+		return isset($array[$pos]) && $array[$pos]? $array[$pos] : $default;
+	}
+	
+	protected static function toCamelCase($uri)
+	{
+		$parts	= explode('_', $uri);
 		$result = '';
 		
 		foreach($parts as $part)
@@ -45,4 +35,15 @@ class CleanCodeClass
 		
 		return $result;
 	}
+	
+	protected static function format_url($string, $is_file)
+	{
+		$search = array('/á|à|ã|â|ä|Á|À|Ã|Â|Ä/', '/é|è|ê|ẽ|ë|É|È|Ê|Ẽ|Ë/', '/í|ì|ĩ|î|ï|Í|Ì|Î|Ĩ|Ï/', '/ó|ò|ô|õ|ö|Ó|Ò|Õ|Ô|Ö/', '/ú|ù|û|ũ|ü|Ú|Ù|Ũ|Û|Ü/', '/ç/', '/\s/', '/[^\w\_\-\/'.($is_file? '\.' : '').']/', '/\/{2,}/');
+		$replace = array('a', 'e', 'i', 'o', 'u', 'c', '_', '', '/');
+		
+		return preg_replace($search, $replace, strtolower($string));
+	}
 }
+
+CleanCodeClass::checkVersion();
+?>
