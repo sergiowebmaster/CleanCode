@@ -1,5 +1,5 @@
 <?php
-class CleanCodeEmail extends CC_Model
+class CleanCodeEmail extends CleanCodeModel
 {
 	protected $from_name = '';
 	protected $from_email = '';
@@ -7,6 +7,8 @@ class CleanCodeEmail extends CC_Model
 	protected $to_email = '';
 	protected $subject = '';
 	protected $message = '';
+	
+	public $charset = 'UTF-8';
 	
 	public function getFromEmail()
 	{
@@ -32,9 +34,9 @@ class CleanCodeEmail extends CC_Model
 	
 	public function setFromName($name)
 	{
-		if($this->validate($name, self::FULLNAME))
+		if($this->validate($name, self::NAME))
 		{
-			$this->from_name = $name;
+			$this->from_name = $this->formatData($name, self::NAME);
 		}
 		else
 		{
@@ -66,9 +68,9 @@ class CleanCodeEmail extends CC_Model
 	
 	public function setToName($name)
 	{
-		if($this->validate($name, self::FULLNAME))
+		if($this->validate($name, self::NAME))
 		{
-			$this->to_name = $name;
+			$this->to_name = $this->formatData($name, self::NAME);
 		}
 		else
 		{
@@ -103,7 +105,7 @@ class CleanCodeEmail extends CC_Model
 		$break = (PATH_SEPARATOR ==":")? "\r\n" : "\n";
 		
 		$headers  = "MIME-Version: 1.1" . $break;
-		$headers .= "Content-type: text/html; charset=iso-8859-1" . $break;
+		$headers .= "Content-type: text/html; charset=" . $this->charset . $break;
 		$headers .= "From: " . $this->from_name . ' <' . $this->from_email . '>' . $break;
 		$headers .= "Return-Path: " . $this->from_email . $break;
 		

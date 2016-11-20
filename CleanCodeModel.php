@@ -5,21 +5,23 @@ class CleanCodeModel extends CleanCodeClass
 {
 	const ALL	 	= '/^[\w\W]{min,max}$/i';
 	const HTML		= '/[<>]{0,}/';
-	const NAME	 	= '/^([aáàâãbcçdeéêfghiíjklmnoóôõöpqrstuúüvwxyz]{2,})+( [aáàâãbcçdeéêfghiíjklmnoóôõöpqrstuúüvwxyz]{2,}){0,}$/i';
-	const FULLNAME = '/^([aáàâãbcçdeéêfghiíjklmnoóôõöpqrstuúüvwxyz]{2,})+( [aáàâãbcçdeéêfghiíjklmnoóôõöpqrstuúüvwxyz]{2,}){1,}$/i';
-	const LOGIN 	= '/^[a-z0-9\-_]{min,max}$/';
+	const NAME	 	= '/^[a-záàâãçéèêëíìóôõöúüÁÀÂÃÇÉÈÊËÍÌÓÒÔÕÖÚÙÜ ]{min,max}$/i';
+	const LOGIN 	= '/^[a-z0-9\-_\.]{min,max}$/';
 	const URI 	 	= '/^[a-z0-9\-\/_]{min,max}$/i';
 	const URL	 	= '/^(http|https)+(:\/\/)+(www\.|)+([a-z0-9\.]{5,})$/';
 	const EMAIL	 	= '/^[_a-z0-9-]+(\.[_a-z0-9-]+)*@[a-z0-9-]+(\.[a-z0-9-]+)*(\.[a-z]{2,3})$/i';
 	const DATE  	= '/^\d{4}\-\d{1,2}\-\d{1,2}$/';
+	const TIME		= '/^\d{1,2}\:\d{1,2}/';
 	const FULLDATE = '/^\d{4}\-\d{2}\-\d{2} \d{2}\:\d{2}$/';
 	const PWD	 	= '/^[\w\@\$\#]{min,max}$/';
 	const NUM	 	= '/^\d{min,max}$/';
 	const DOUBLE	= '/^[\d\.]{1,}$/';
-	const FILE	 	= '/^([\w_\-]{min,max})+(\.\w{2,5})$/';
+	const FILE	 	= '/^([\w_\-\.]{min,max})+(\.\w{2,5})$/';
 	const CPF		= '/^\d{3}\.\d{3}\.\d{3}\-\d{2}$/';
 	const TEL_BR	= '/^\(\d{2}\) \d{4,5}\-\d{4}$/';
 	const GENDER	= '/^[FM]$/i';
+	const IP		= '/^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}$/';
+	const BOOLEAN	= '/^[0-1]$/';
 	
 	protected $error = '';
 	protected $success = '';
@@ -41,14 +43,40 @@ class CleanCodeModel extends CleanCodeClass
 		return $min === 0 || preg_match(self::formatRegex($regex, $min, $max), addslashes($value));
 	}
 	
+	protected function formatData($value, $regex)
+	{
+		switch ($regex)
+		{
+			case self::PWD:
+				return md5($value);
+				break;
+			
+			case self::LOGIN:
+			case self::EMAIL:
+				return strtolower($value);
+				break;
+				
+			case self::NAME:
+				return ucwords(strtolower($value));
+				break;
+				
+			default: return $value;
+		}
+	}
+	
+	public function check()
+	{
+		return $this->error == '';
+	}
+	
 	public function getSuccess()
 	{
 		return $this->success;
 	}
 	
-	protected function setSuccess($message)
+	public function setSuccess($message)
 	{
-		if($this->success == '') $this->success = $message;
+		if($this->success == '' && $this->check()) $this->success = $message;
 	}
 	
 	public function getError()
@@ -58,12 +86,12 @@ class CleanCodeModel extends CleanCodeClass
 	
 	public function setError($message)
 	{
-		if($this->error == '') $this->error = $message;
+		if($this->check()) $this->error = $message;
 	}
 	
 	protected function setErrorByField($fieldError)
 	{
-		$this->setError('Preencha corretamente o campo "' . $fieldError . '"!');
+		$this->setError('Invalid ' . $fieldError . '!');
 	}
 	
 	public function load($data)

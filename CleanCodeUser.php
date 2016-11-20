@@ -1,55 +1,60 @@
 <?php
-require_once 'CleanCodeDAO.php';
+require_once 'CleanCodeDefaultDAO.php';
 
-class CleanCodeUser extends CleanCodeDAO
+class CleanCodeUser extends CleanCodeDefaultDAO
 {
 	protected static $table = 'users';
 	
-	public function getLogin()
+	private static $pwdField = 'password';
+	
+	public static function setPwdField($fieldName)
 	{
-		return $this->get_column('login');
+		self::$pwdField = $fieldName;
 	}
 	
-	public function setLogin($login)
+	public function getEmail()
 	{
-		$this->set_column('login', $login, self::LOGIN, 3, 20);
+		return $this->get_column('email');
+	}
+	
+	public function setEmail($email)
+	{
+		$this->set_column('email', $email, self::EMAIL);
 	}
 	
 	protected function getPassword()
 	{
-		return $this->get_column('password');
+		return $this->get_column(self::$pwdField);
 	}
 	
-	protected function setPassword($password)
+	public function setPassword($password)
 	{
-		$this->set_column('password', $password, self::PWD);
+		$this->set_column(self::$pwdField, $password, self::PWD);
+	}
+	
+	public function confirmPassword($password, $confirm)
+	{
+		if ($password != $confirm)
+		{
+			$this->setError('A nova senha e a confirmação devem ser iguais!');
+		}
+		else
+		{
+			$this->setPassword($password);
+		}
 	}
 	
 	public function changePassword($currentPassword, $newPassword, $confirm)
 	{
-		if($currentPassword != $this->getPassword())
+		if(md5($currentPassword) != $this->getPassword())
 		{
 			$this->setError('Senha atual incorreta!');
 			return false;
 		}
-		else if ($newPassword != $confirm)
+		else if ($this->confirmPassword($newPassword, $confirm))
 		{
-			$this->setError('A nova senha e a confirmação devem ser iguais!');
-			return false;
-		}
-		else
-		{
-			$this->setPassword($newPassword);
 			return $this->update();
 		}
-	}
-	
-	public function authenticate($login, $password)
-	{
-		$this->setLogin($login);
-		$this->setPassword($password);
-		
-		return $this->execute($this->loadFromDB(), 'Fazendo login...', 'Dados de acesso incorretos.');
 	}
 }
 ?>

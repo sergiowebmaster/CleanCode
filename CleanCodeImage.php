@@ -8,11 +8,53 @@ class CleanCodeImage extends CleanCodeFile
 	private $height = 0;
 	private $width = 0;
 	private $maxDim = 0;
-	private $images = array();
+	private $thumbs = array();
 	
 	function __construct($extensions = 'jpg|gif|png')
 	{
 		parent::__construct($extensions);
+	}
+	
+	public function addThumb($maxDim, $folder)
+	{
+		$thumb = new self();
+		$thumb->setPath($this->getFolderPath());
+		$thumb->setMaxDim($maxDim);
+		$thumb->setFolder($folder);
+		
+		$this->thumbs[$folder] = $thumb;
+	}
+	
+	public function sendThumbs()
+	{
+		$sends = 0;
+		
+		foreach ($this->thumbs as $folder => $thumb)
+		{
+			$thumb->oldName = $this->oldName;
+			$thumb->setName($this->name);
+			$thumb->setTmpName($this->tmp_name);
+			$thumb->setSize($this->size);
+			$thumb->setType($this->type);
+			
+			if($thumb->send()) $sends++;
+		}
+		
+		return $sends == count($this->thumbs);
+	}
+	
+	public function deleteThumbs()
+	{
+		$sends = 0;
+		
+		foreach ($this->thumbs as $folder => $thumb)
+		{
+			$thumb->setName($this->name);
+			
+			if($thumb->delete()) $sends++;
+		}
+		
+		return $sends == count($this->thumbs);
 	}
 	
 	public static function setDefaultMaxDim($maxDim)
@@ -83,6 +125,16 @@ class CleanCodeImage extends CleanCodeFile
 		{
 			return parent::upload();
 		}
+	}
+	
+	public function send()
+	{
+		return count($this->thumbs)? $this->sendThumbs() : parent::send();
+	}
+	
+	public function delete()
+	{
+		return count($this->thumbs)? $this->deleteThumbs() : parent::delete();
 	}
 }
 ?>

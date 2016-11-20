@@ -12,15 +12,14 @@ class CleanCodeFile extends CleanCodeModel
 	
 	private $filter = array();
 	private $folder = '';
-	private $trash= '';
 	
 	protected $name = '';
 	protected $tmp_name  = '';
-	protected $ext	= '';
 	protected $type = '';
 	protected $size = 0;
 	
-	public $old_name = '';
+	public $ext	= '';
+	public $oldName = '';
 	
 	protected function getFolderPath()
 	{
@@ -29,7 +28,15 @@ class CleanCodeFile extends CleanCodeModel
 	
 	public static function setPath($path)
 	{
-		static::$path = CleanCodeDir::getAliasPath($path);
+		static::$path = CleanCodeDir::translate($path);
+	}
+	
+	public static function prepareMultiple($files, $callback)
+	{
+		for($i=0; $i < count($files['name']); $i++)
+		{	
+			$callback($files['name'][$i], $files['tmp_name'][$i], $files['type'][$i], $files['size'][$i]);
+		}
 	}
 	
 	public function getFullPath()
@@ -40,25 +47,6 @@ class CleanCodeFile extends CleanCodeModel
 	public static function format($string)
 	{
 		return self::format_url($string, true);
-	}
-	
-	public static function create_multiple($files, $callback, $extensions)
-	{
-		$return = array();
-		
-		for ($i = 0; $i < count($files['name']); $i++)
-		{
-			$file = new static($extensions);
-			$file->setName($files['name'][$i]);
-			$file->setTmpName($files['tmp_name'][$i]);
-			$file->setType($files['type'][$i]);
-			$file->setSize($files['size'][$i]);
-			$file->send_if_not_exists();
-			
-			$return[] = $callback($file->getName(), $file->getError());
-		}
-		
-		return $return;
 	}
 	
 	function __construct($extensions)
@@ -78,7 +66,7 @@ class CleanCodeFile extends CleanCodeModel
 	
 	public function getName()
 	{
-		return $this->name? $this->name : $this->old_name;
+		return $this->name;
 	}
 	
 	public function setName($name)
@@ -115,7 +103,7 @@ class CleanCodeFile extends CleanCodeModel
 	
 	public function setSize($size)
 	{
-		if(is_numeric($size) && $size) $this->size = $size;
+		if($size && is_numeric($size)) $this->size = $size;
 		else $this->setErrorByField('size');
 	}
 	
@@ -124,87 +112,85 @@ class CleanCodeFile extends CleanCodeModel
 		return $this->type;
 	}
 	
-	public function setType($type)
+	private function setExt($type)
 	{
-		if($type) $this->type = $type;
-		else $this->setErrorByField('type');
-	}
-	
-	public function generate_name($size)
-	{
-		$info = explode('/', $this->type);
-		
-		if(count($info) == 2)
+		switch ($type)
 		{
-			$filename = '';
-			$this->ext = $info[1];
-			
-			while($filename == '' || file_exists($filename))
-			{
-				$filename = CC_Helper::getRandomString($size) . '.' . $info[1];
-			}
-			
-			$this->name = $filename;
+			case 'image/jpeg':$this->ext = 'jpg'; break;
+			default: $info = explode('/', $type); $this->ext = end($info);
 		}
 	}
 	
-	protected function upload()
+	public function setType($type)
 	{
-		if(copy($this->tmp_name, $this->getFullPath()))
+		if($type)
+		{
+			$this->type = $type;
+			$this->setExt($type);
+		}
+		else $this->setErrorByField('type');
+	}
+	
+	public function set($name, $tmpName, $type, $size)
+	{
+		$this->setName($name);
+		$this->setTmpName($tmpName);
+		$this->setType($type);
+		$this->setSize($size);
+	}
+	
+	protected function checkType()
+	{
+		if(in_array($this->ext, $this->filter) || $this->filter == array('*'))
 		{
 			return true;
 		}
 		else
 		{
-			$this->setError('Erro ao fazer upload do arquivo!');
+			$this->setErrorByField('extension');
 			return false;
 		}
 	}
 	
-	public function replace($oldName)
+	public function createRandomName($length)
 	{
-		if($oldName != $this->name)
-		{
-			$this->trash = $this->getFolderPath() . $oldName;
-		}
+		$this->setName(CleanCodeHelper::generateHash($length) . '.' . $this->ext);
 	}
 	
-	private function unlink_file()
+	protected function upload()
 	{
-		if(file_exists($this->trash) && @unlink($this->trash))
-		{
-			return true;
-		}
-		else if($this->name)
-		{
-			$this->setError('Falha ao excluir o arquivo!');
-			return false;
-		}
+		return copy($this->tmp_name, $this->getFullPath());
 	}
 	
 	public function delete()
 	{
-		$this->trash = $this->getFullPath();
-		return $this->unlink_file();
+		return $this->name && file_exists($this->getFullPath()) && unlink($this->getFullPath());
+	}
+	
+	private function deleteOld()
+	{
+		$old = new self('*');
+		$old->setFolder($this->folder);
+		$old->setName($this->oldName);
+		
+		return $old->delete();
 	}
 	
 	public function send()
 	{
-		if($this->getError() || $this->size == 0 || $this->tmp_name == '' || file_exists($this->getFullPath()))
+		if($this->name == '' || $this->getError())
 		{
 			return false;
 		}
-		else if($this->upload())
+		else if($this->checkType() && $this->upload())
 		{
-			if($this->trash) $this->unlink_file();
-			return true;
+			return $this->oldName == '' || $this->oldName == $this->name || $this->deleteOld();
 		}
-		else return false;
-	}
-	
-	public function send_if_not_exists()
-	{
-		return file_exists($this->getFullPath()) || $this->send();
+		else
+		{
+			$this->setError('Upload failed!');
+			return false;
+		}
 	}
 }
 ?>

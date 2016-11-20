@@ -13,7 +13,7 @@ class CleanCodeDir extends CleanCodeClass
 	);
 	
 	private $path = '';
-	private $sub_folders = array();
+	private $subFolders = array();
 	
 	public static function format($string)
 	{
@@ -27,9 +27,9 @@ class CleanCodeDir extends CleanCodeClass
 	
 	public static function translate($alias)
 	{
-		if (strstr(':', $alias))
+		if ($alias && strstr(':', $alias))
 		{
-			$parts = explode(':', $alias); echo $parts[0] . '<br>';
+			$parts = explode(':', $alias);
 			return self::searchPos(self::$aliases, $parts[0]) . $parts[1];
 		}
 		else if (isset(self::$aliases[$alias]))
@@ -45,6 +45,25 @@ class CleanCodeDir extends CleanCodeClass
 	function __construct($path)
 	{
 		$this->path = $path;
+	}
+	
+	public function addSubFolders($folder)
+	{
+		$this->subFolders = func_get_args();
+	}
+	
+	private function createSubFolders()
+	{
+		$ok = true;
+		
+		foreach ($this->subFolders as $folder)
+		{
+			$dir = new self($this->getPath() . $folder);
+			
+			if(!$dir->create()) $ok = false;
+		}
+		
+		return $ok;
 	}
 	
 	private function recursive_scan($dir, $funct, $only_dir)
@@ -97,7 +116,7 @@ class CleanCodeDir extends CleanCodeClass
 	
 	public function create($chmod = 0777)
 	{
-		return mkdir($this->path, $chmod, true);
+		return mkdir($this->path, $chmod, true) && (count($this->subFolders) == 0 || $this->createSubFolders());
 	}
 	
 	public function delete()

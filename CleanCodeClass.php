@@ -2,20 +2,20 @@
 class CleanCodeClass
 {
 	protected static $debug = false;
+
+	const PHP_REQUIRED_VERSION = '5.3';
 	
-	const CC_PHP_VERSION = '5.3';
+	public static function checkPhpVersion()
+	{
+		if(!defined('PHP_VERSION') || PHP_VERSION < self::PHP_REQUIRED_VERSION)
+		{
+			die('CleanCode Framework require PHP 5.3 or more. (Actually: ' . PHP_VERSION . ')');
+		}
+	}
 	
 	public static function debugMode()
 	{
-		self::$debug = true;
-	}
-	
-	public static function checkVersion()
-	{
-		if(PHP_VERSION < self::CC_PHP_VERSION)
-		{
-			die('CleanCode requer PHP 5.3 ou superior. (atual: ' . PHP_VERSION . ')');
-		}
+		static::$debug = true;
 	}
 	
 	protected static function searchPos($array, $pos, $default = '')
@@ -25,8 +25,8 @@ class CleanCodeClass
 	
 	protected static function toCamelCase($uri)
 	{
-		$parts	= explode('_', $uri);
-		$result = '';
+		$parts	= explode('_', self::format_url($uri, false));
+		$result = array_shift($parts);
 		
 		foreach($parts as $part)
 		{
@@ -45,5 +45,5 @@ class CleanCodeClass
 	}
 }
 
-CleanCodeClass::checkVersion();
+CleanCodeClass::checkPhpVersion();
 ?>

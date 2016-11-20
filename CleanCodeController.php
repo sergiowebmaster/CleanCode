@@ -2,9 +2,11 @@
 session_start();
 
 require_once 'CleanCodeClass.php';
+require_once 'CleanCodeUser.php';
+require_once 'CleanCodeDaoUri.php';
 require_once 'CleanCodeView.php';
 
-abstract class CleanCodeController extends CleanCodeClass
+class CleanCodeController extends CleanCodeClass
 {
 	/*
 	 * Array with the parts of requested URI.
@@ -13,10 +15,152 @@ abstract class CleanCodeController extends CleanCodeClass
 	private static $uri = array();
 	
 	/*
-	 * Array data for the view.
-	 * @var array
+	 * Instance of CleanCodeLanguage.
+	 * @var object
 	 */
-	protected static $data = array();
+	protected static $language;
+
+	/*
+	 * Instance of CleanCodeUser.
+	 * @var object
+	 */
+	protected static $user;
+
+	/*
+	 * Instance of CleanCodeView.
+	 * @var object
+	 */
+	protected static $view;
+
+	/*
+	 * The name of the user session.
+	 * @var String
+	 */
+	protected $userSession = 'user';
+
+	/*
+	 * The central model of the Controller. Instance of CleanCodeDAO.
+	 * @var object
+	 */
+	protected $model;
+	
+	/*
+	 * Get the value of a GET variable.
+	 * @access protected
+	 * @param String $var The name of the GET variable.
+	 * @param String $default The default value, if the variable is not found.
+	 * @return String
+	 */
+	protected static function get($var = '', $default = '')
+	{
+		return $var? self::searchPos($_GET, $var, $default) : $_GET;
+	}
+
+	/*
+	 * Get the value of a POST variable.
+	 * @access protected
+	 * @param String $var The name of the POST variable.
+	 * @param String $default The default value, if the variable is not found.
+	 * @return String
+	 */
+	protected static function post($var = '', $default = '')
+	{
+		return $var? self::searchPos($_POST, $var, $default) : $_POST;
+	}
+
+	/*
+	 * Get the value of a FILES variable.
+	 * @access protected
+	 * @param String $var The name of the FILES variable.
+	 * @param String $default The default value, if the variable is not found.
+	 * @return String
+	 */
+	protected static function files($var = '', $default = '')
+	{
+		return $var? self::searchPos($_FILES, $var, $default) : $_FILES;
+	}
+
+	/*
+	 * Get the value of a session.
+	 * @access protected
+	 * @param String $name The name of the session.
+	 * @param String $default The default value, if the variable is not found.
+	 * @return String
+	 */
+	protected static function getSession($name, $default = '')
+	{
+		return self::searchPos($_SESSION, $name, $default);
+	}
+
+	/*
+	 * Set the value of a session.
+	 * @access protected
+	 * @param String $name The name of the session.
+	 * @param String $value The value of the session.
+	 * @return void
+	 */
+	protected function setSession($name, $value)
+	{
+		$_SESSION[$name] = $value;
+	}
+	
+	/*
+	 * Add value in a array session.
+	 * @access protected
+	 * @param String $name The name of the session.
+	 * @param String $value The value of the session.
+	 * @return void
+	 */
+	protected function addSessionValue($name, $value)
+	{
+		if($this->getSession($name) == '')
+		{
+			$this->setSession($name, array($value));
+		}
+		else if(!in_array($value, $_SESSION[$name]))
+		{
+			$_SESSION[$name][] = $value;
+		}
+	}
+
+	/*
+	 * Destroy a session.
+	 * @access protected
+	 * @param String $name The name of the session.
+	 * @return void
+	 */
+	protected function unsetSession($name)
+	{
+		unset($_SESSION[$name]);
+	}
+
+	/*
+	 * Check a session and clear the URI, if the session is empty or not found.
+	 * @access protected
+	 * @param String $sessionName The name of the session.
+	 * @return void
+	 */
+	protected function checkSession($sessionName)
+	{
+		$this->check($this->getSession($sessionName));
+	}
+	
+	/*
+	 * Get the value of a cookie.
+	 * @access protected
+	 * @param String $name The name of the cookie.
+	 * @param String $default The default value, if the cookie is not found.
+	 * @return void
+	 */
+	protected static function getCookie($name, $default = '')
+	{
+		return self::searchPos($_COOKIE, $name, $default);
+	}
+	
+	protected function setPersistentCookie($name, $value)
+	{
+		setcookie($name, $value, time() + (3600 * 24 * 7));
+	}
 	
 	/*
 	 * Get the requested URI in the server.
@@ -36,6 +180,36 @@ abstract class CleanCodeController extends CleanCodeClass
 	protected static function getHostname()
 	{
 		return $_SERVER['HTTP_HOST'];
+	}
+	
+	/*
+	 * Return the IP address.
+	 * @access protected
+	 * @return String
+	 */
+	protected function getIP()
+	{
+		return $_SERVER['REMOTE_ADDR'];
+	}
+
+	/*
+	 * Return the servername.
+	 * @access protected
+	 * @return String
+	 */
+	protected function getServerName()
+	{
+		return $_SERVER['SERVER_NAME'];
+	}
+
+	/*
+	 * Return the user agent of the client.
+	 * @access protected
+	 * @return String
+	 */
+	protected function getUserAgent()
+	{
+		return $_SERVER['HTTP_USER_AGENT'];
 	}
 	
 	/*
@@ -89,107 +263,494 @@ abstract class CleanCodeController extends CleanCodeClass
 	{
 		$this->redirect(self::getRequestUri());
 	}
-	
-	/*
-	 * Get the value of a GET variable.
-	 * @access protected
-	 * @param String $var The name of the GET variable.
-	 * @param String $default The default value, if the variable is not found.
-	 * @return String
-	 */
-	protected static function get($var = '', $default = '')
-	{
-		return $var? self::searchPos($_GET, $var, $default) : $_GET;
-	}
-
-	/*
-	 * Get the value of a POST variable.
-	 * @access protected
-	 * @param String $var The name of the POST variable.
-	 * @param String $default The default value, if the variable is not found.
-	 * @return String
-	 */
-	protected static function post($var = '', $default = '')
-	{
-		return $var? self::searchPos($_POST, $var, $default) : $_POST;
-	}
-
-	/*
-	 * Get the value of a FILES variable.
-	 * @access protected
-	 * @param String $var The name of the FILES variable.
-	 * @param String $default The default value, if the variable is not found.
-	 * @return String
-	 */
-	protected static function files($var = '', $default = '')
-	{
-		return $var? self::searchPos($_FILES, $var, $default) : $_FILES;
-	}
-
-	/*
-	 * Get the value of a session.
-	 * @access protected
-	 * @param String $name The name of the session.
-	 * @param String $default The default value, if the variable is not found.
-	 * @return String
-	 */
-	protected static function get_session($name, $default = '')
-	{
-		return self::searchPos($_SESSION, $name, $default);
-	}
-
-	/*
-	 * Set the value of a session.
-	 * @access protected
-	 * @param String $name The name of the session.
-	 * @param String $value The value of the session.
-	 * @return void
-	 */
-	protected function set_session($name, $value)
-	{
-		$_SESSION[$name] = $value;
-	}
-
-	/*
-	 * Destroy a session.
-	 * @access protected
-	 * @param String $name The name of the session.
-	 * @return void
-	 */
-	protected function unset_session($name)
-	{
-		unset($_SESSION[$name]);
-	}
-
-	/*
-	 * Check a condition and clear the URI, if this condition isn't true.
-	 * @access protected
-	 * @param String $condition The condition for to continue the routing.
-	 * @return void
-	 */
-	protected function check($condition)
-	{
-		if(!$condition) self::$uri = array();
-	}
-
-	/*
-	 * Check a session and clear the URI, if the session is empty or not found.
-	 * @access protected
-	 * @param String $sessionName The name of the session.
-	 * @return void
-	 */
-	protected function checkSession($sessionName)
-	{
-		$this->check($this->get_session($sessionName));
-	}
 
 	/*
 	 * Shift the next part of the URI.
 	 * @access protected
 	 * @return String
 	 */
-	protected function cropSlug()
+	protected function getNextSlug($default = '')
 	{
-		return self::$uri? array_shift(self::$uri) : '';
+		$uri = self::$uri? current(self::$uri) : $default;
+		next(self::$uri);
+		return $uri;
+	}
+
+	/*
+	 * Return the previous route.
+	 * @access protected
+	 * @return String
+	 */
+	protected function getBackURI()
+	{
+		$uri = self::$uri;
+		array_pop($uri);
+		return join('/', $uri);
+	}
+
+	/*
+	 * Load the configuration for a localhost.
+	 * @access protected
+	 * @return void
+	 */
+	protected function loadLocalhostConfig()
+	{
+		// Implement in the Front Controller.
+	}
+
+	/*
+	 * Load the configuration for a external host.
+	 * @access protected
+	 * @return void
+	 */
+	protected function loadOnlineConfig()
+	{
+		// Implement in the Front Controller.
+	}
+
+	/*
+	 * Select the configuration for the current host.
+	 * @access protected
+	 * @return void
+	 */
+	protected function selectHostConfig()
+	{
+		switch (self::getHostname())
+		{
+			case 'localhost':
+				$this->loadLocalhostConfig();
+				break;
+				
+			default:
+				$this->loadOnlineConfig();
+		}
+	}
+
+	/*
+	 * Create a new instance of Language Class and set the language folder.
+	 * @access protected
+	 * @param String $lang Specifies the language folder of the translate.
+	 * @return void
+	 */
+	public function setLanguage($lang)
+	{
+		self::$language = new CleanCodeLanguage($lang);
+		CleanCodeView::setLang($lang);
+	}
+	
+	/*
+	 * Set the language by a cookie value.
+	 * @access public
+	 * @param String $defaultLanguage The default language, if not have cookie.
+	 * @return void
+	 */
+	public function setLanguageByCookie($defaultLanguage)
+	{
+		$this->setLanguage($this->getCookie('lang', $defaultLanguage));
+	}
+
+	/*
+	 * Set the language of the application, by an URI, and route.
+	 * @access protected
+	 * @param String $uri The URI of the language.
+	 * @param String $persist If true, save the value in a cookie.
+	 * @return String
+	 */
+	protected function translate($uri, $persist = false)
+	{
+		if($persist) $this->setPersistentCookie('lang', $uri);
+		$this->setLanguage($uri);
+		$this->route();
+	}
+
+	/*
+	 * Set the model user for restrict areas.
+	 * @access protected
+	 * @return void
+	 */
+	protected function setUser()
+	{
+		self::$user = new CleanCodeUser();
+	}
+
+	/*
+	 * Set the ID of the user, by a session.
+	 * @access protected
+	 * @return void
+	 */
+	protected function filterUserBySession()
+	{
+		self::$user->setID($this->getSession($this->userSession, 0));
+	}
+
+	/*
+	 * Set the user and your ID, by session, for restrict routes.
+	 * @access protected
+	 * @return void
+	 */
+	public function identifyUser()
+	{
+		$this->setUser();
+		$this->filterUserBySession();
+	}
+
+	/*
+	 * Check if have user instance and if is found.
+	 * @access private
+	 * @return void
+	 */
+	private function checkUser()
+	{
+		return self::$user && self::$user->loadFromDB();
+	}
+
+	/*
+	 * Set the user session and refresh the page.
+	 * @access protected
+	 * @return void
+	 */
+	protected function authUser()
+	{
+		$this->setSession($this->userSession, self::$user->getID());
+		$this->refresh();
+	}
+	
+	/*
+	 * Set the login data of the user.
+	 * @access protected
+	 * @param String $email The email of the user.
+	 * @param String $password The password of the user.
+	 * @return void
+	 */
+	protected function filterUserByLogin($email, $password)
+	{
+		self::$user->setEmail($email);
+		self::$user->setPassword($password);
+	}
+
+	/*
+	 * Load the login data and search the user.
+	 * @access protected
+	 * @param String $email The email of the user.
+	 * @param String $password The password of the user.
+	 * @return void
+	 */
+	protected function doLogin($email, $password)
+	{
+		$this->setUser();
+		$this->filterUserByLogin($email, $password);
+		if(self::$user->loadFromDB()) $this->authUser();
+	}
+
+	/*
+	 * Destroy the session and redirect for a login page.
+	 * @access protected
+	 * @param String $path The path for redirect, after destroy the session.
+	 * @return void
+	 */
+	protected function doLogout($path = './')
+	{
+		$this->unsetSession($this->userSession);
+		$this->redirect($path);
+	}
+
+	/*
+	 * Set the model instance.
+	 * @access protected
+	 * @return void
+	 */
+	protected function setModel()
+	{
+		$this->model = new CleanCodeDaoUri();
+	}
+
+	/*
+	 * Return a clone of the model instance.
+	 * @access protected
+	 * @return void
+	 */
+	protected function cloneModel()
+	{
+		return clone $this->model;
+	}
+	
+	/*
+	 * Set the view messages of error and success, by model messages.
+	 * @access protected
+	 * @param String $errorVar The name of the error var.
+	 * @param String $successVar The name of the success var.
+	 * @return void
+	 */
+	protected function setMessagesByModel($errorVar, $successVar)
+	{
+		self::$view->data[$errorVar] = $this->model->getError();
+		self::$view->data[$successVar] = $this->model->getSuccess();
+	}
+
+	/*
+	 * Set the view messages of error and success, by the model messages.
+	 * @access protected
+	 * @return void
+	 */
+	protected function setMessages()
+	{
+		$this->setMessagesByModel('error', 'success');
+	}
+
+	/*
+	 * Get the post value of the action input of the form.
+	 * @access protected
+	 * @return void
+	 */
+	protected function getAction()
+	{
+		return $this->post('action');
+	}
+
+	/*
+	 * Set the current view instance.
+	 * @access protected
+	 * @return void
+	 */
+	protected function setView()
+	{
+		self::$view = new CleanCodeView('layout.phtml');
+	}
+
+	/*
+	 * Configure the view for to show the index page.
+	 * @access protected
+	 * @return void
+	 */
+	protected function showIndexPage()
+	{
+		self::$view->setTitle('Welcome');
+		self::$view->setDescription('This is the index page.');
+	}
+
+	/*
+	 * Configure the view for to show a dynamic page.
+	 * @access protected
+	 * @return void
+	 */
+	protected function showDynamicPage()
+	{
+		self::$view->setTitle('Dynamic Page');
+		self::$view->setDescription('This is a dynamic page.');
+	}
+
+	/*
+	 * Configure the view for to show the internal page, for a restrict area.
+	 * @access protected
+	 * @return void
+	 */
+	protected function showRestrictPage()
+	{
+		self::$view->setTitle('Restrict Page');
+		self::$view->setDescription('This is a restrict page.');
+	}
+
+	/*
+	 * Configure the view for to show the admin index page.
+	 * @access protected
+	 * @return void
+	 */
+	protected function showAdminPage()
+	{
+		self::$view->setTitle('Admin Page');
+		self::$view->setDescription('This is a admin page.');
+	}
+
+	/*
+	 * Configure the view for to show the admin edit page.
+	 * @access protected
+	 * @return void
+	 */
+	protected function showEditPage($id)
+	{
+		self::$view->setTitle('Edit Page');
+		self::$view->setDescription('Edit your model.');
+	}
+
+	/*
+	 * Configure the view for to show the 404 page.
+	 * @access protected
+	 * @return void
+	 */
+	protected function show404Error()
+	{
+		self::$view->setRobots(false, false);
+		self::$view->setTitle('404 Error');
+		self::$view->setDescription('This page is not found.');
+	}
+
+	/*
+	 * Render the view.
+	 * @access protected
+	 * @return void
+	 */
+	private function showView()
+	{
+		self::$view->show();
+	}
+	
+	/*
+	 * Search the dao model by your primary key. If not found, show the 404 error.
+	 * @access protected
+	 * @param String $pk The identifier value.
+	 * @return void
+	 */
+	protected function searchPK($pk)
+	{
+		$this->model->loadByPK($pk)? $this->showAdminPage() : $this->show404Error();
+	}
+
+	/*
+	 * Search the dao model by your URI slug. If not found, show the 404 error.
+	 * @access protected
+	 * @param String $uri The URI value in the database table.
+	 * @return void
+	 */
+	public function searchUri($uri)
+	{
+		$this->model->loadByURI($uri)? $this->showDynamicPage() : $this->show404Error();
+	}
+	
+	/*
+	 * Select the admin page by the current URI slug.
+	 * @access protected
+	 * @param String $uri The current slug.
+	 * @return void
+	 */
+	protected function selectAdminRoute($uri)
+	{
+		switch ($uri)
+		{
+			case '':
+				$this->showAdminPage();
+				break;
+				
+			default:
+				$this->showEditForm($uri);
+		}
+	}
+
+	/*
+	 * Select the public page by the current URI slug.
+	 * @access protected
+	 * @param String $uri The current slug.
+	 * @return void
+	 */
+	protected function selectPublicRoute($uri)
+	{
+		switch ($uri)
+		{
+			case '':
+				$this->showIndexPage();
+				break;
+				
+			default:
+				$this->searchUri($uri);
+		}
+	}
+
+	/*
+	 * Select the restrict page by the current URI slug.
+	 * @access protected
+	 * @param String $uri The current slug.
+	 * @return void
+	 */
+	protected function selectRestrictRoute($uri)
+	{
+		switch ($uri)
+		{
+			case '':
+				$this->showRestrictPage();
+				break;
+				
+			case 'logout':
+				$this->doLogout();
+				break;
+				
+			default:
+				$this->selectPublicRoute($uri);
+		}
+	}
+
+	/*
+	 * Select the ajax page by the current URI slug.
+	 * @access protected
+	 * @param String $uri The current slug.
+	 * @return void
+	 */
+	protected function selectAjaxRoute($uri)
+	{
+		switch ($uri)
+		{
+			case '':
+				self::$view = new CleanCodeView('');
+				break;
+				
+			default:
+				$this->show404Error();
+		}
+	}
+
+	/*
+	 * Send the current URI for select the ajax page.
+	 * @access public
+	 * @return void
+	 */
+	public function ajax()
+	{
+		$this->selectAjaxRoute($this->getNextSlug());
+	}
+
+
+	/*
+	 * Send the current URI for select the admin page.
+	 * @access public
+	 * @return void
+	 */
+	public function administrate()
+	{
+		$this->selectAdminRoute($this->getNextSlug());
+	}
+
+	/*
+	 * Send the current URI for select the page.
+	 * @access public
+	 * @return void
+	 */
+	public function route()
+	{
+		$uri = $this->getNextSlug();
+		$this->checkUser()? $this->selectRestrictRoute($uri) : $this->selectPublicRoute($uri);
+	}
+
+	/*
+	 * Verify if is out route. Show 404 error, if have.
+	 * @access private
+	 * @return void
+	 */
+	private function verifyOutURI()
+	{
+		if($this->getNextSlug()) $this->show404Error();
+	}
+
+	/*
+	 * Start the routing by the front controller.
+	 * @access public
+	 * @return void
+	 */
+	public function start()
+	{
+		$this->readUri();
+		$this->selectHostConfig();
+		$this->setModel();
+		$this->setView();
+		$this->route();
+		$this->verifyOutURI();
+		$this->showView();
 	}
 }

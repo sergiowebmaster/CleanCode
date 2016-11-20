@@ -17,16 +17,6 @@ class CleanCodeAutoload extends CleanCodeClass
 	}
 	
 	/*
-	 * Start the autoload and register controllers and models folders.
-	 * @access public
-	 * @return void
-	 */
-	public static function init()
-	{
-		$instance = new self();
-	}
-	
-	/*
 	 * Search the class in folders and instance if is found.
 	 * @access private
 	 * @param String $className Name of class.
