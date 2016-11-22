@@ -54,26 +54,9 @@ class CleanCodeDAO extends CleanCodeModel
 		$this->cache = $this->data;
 	}
 	
-	private function formatFieldValue($name, $value, $regex)
-	{
-		switch ($regex)
-		{
-			case self::HTML:
-				return preg_replace('/^<\?.*\?>$/', '', $value);
-				break;
-		
-			case self::BOOLEAN:
-				return $value? 1:0;
-				break;
-		
-			default:
-				return $this->formatData(strip_tags($value), $regex);
-		}
-	}
-	
 	protected function set_column($name, $value, $regex, $min = 1, $max = '')
 	{
-		$this->data[$name] = $this->formatFieldValue($name, $value, $regex);
+		$this->data[$name] = $value = $this->formatData($value, $regex);
 		
 		if(!$this->validate($value, $regex, $min, $max))
 		{

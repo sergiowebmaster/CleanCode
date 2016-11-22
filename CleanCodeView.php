@@ -5,6 +5,7 @@ class CleanCodeView extends CleanCodeClass
 {
 	public static $opt = '';
 	public static $path = 'views/';
+	public static $global = array();
 	
 	private $layout = '';
 	
@@ -20,7 +21,7 @@ class CleanCodeView extends CleanCodeClass
 			'og' => array()
 	);
 	
-	public static $data = array();
+	public $data = array();
 	
 	function __construct($layout)
 	{
@@ -196,12 +197,13 @@ class CleanCodeView extends CleanCodeClass
 	private function toJSON()
 	{
 		header('Content-Type: text/plain');
-		echo json_encode(self::$data);
+		echo json_encode($this->data);
 	}
 	
 	private function renderHTML()
 	{
-		extract(self::$data);
+		extract($this->data);
+		extract(self::$global);
 		extract(self::$info);
 		include self::$path . $this->layout;
 	}

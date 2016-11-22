@@ -433,13 +433,21 @@ class CleanCodeController extends CleanCodeClass
 	 * @access protected
 	 * @param String $email The email of the user.
 	 * @param String $password The password of the user.
+	 * @param String $actionLabel The label of the submit button.
 	 * @return void
 	 */
-	protected function doLogin($email, $password)
+	protected function doLogin($email, $password, $actionLabel)
 	{
-		$this->setUser();
-		$this->filterUserByLogin($email, $password);
-		if(self::$user->loadFromDB()) $this->authUser();
+		if($this->getAction() == $actionLabel)
+		{
+			$this->setUser();
+			$this->filterUserByLogin($email, $password);
+			
+			if(self::$user->loadFromDB())
+			{
+				$this->authUser();
+			}
+		}
 	}
 
 	/*
@@ -688,11 +696,30 @@ class CleanCodeController extends CleanCodeClass
 		switch ($uri)
 		{
 			case '':
-				self::$view = new CleanCodeView('');
+				if($this->model) echo json_encode($this->model->toArray());
 				break;
 				
 			default:
 				$this->show404Error();
+		}
+	}
+
+	/*
+	 * Select the ajax page by the current URI slug.
+	 * @access protected
+	 * @param String $uri The current slug.
+	 * @return void
+	 */
+	protected function selectRestrictAjax($uri)
+	{
+		switch ($uri)
+		{
+			case '':
+				if($this->model) echo json_encode($this->model->toArray());
+				break;
+				
+			default:
+				$this->selectAjaxRoute($uri);
 		}
 	}
 
@@ -703,9 +730,10 @@ class CleanCodeController extends CleanCodeClass
 	 */
 	public function ajax()
 	{
-		$this->selectAjaxRoute($this->getNextSlug());
+		self::$view = new CleanCodeView('');
+		$uri = $this->getNextSlug();
+		$this->checkUser()? $this->selectRestrictAjax($uri) : $this->selectAjaxRoute($uri);
 	}
-
 
 	/*
 	 * Send the current URI for select the admin page.

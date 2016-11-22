@@ -37,16 +37,15 @@ class CleanCodeModel extends CleanCodeClass
 		$invalid = array('/\s/', '/acute;/', '/cedil;/', '/grave;/', '/circ;/', '/tilde;/', '/[^\-\_\w]/');
 		return preg_replace($invalid, array('_', ''), strtolower($string));
 	}
-
-	protected function validate($value, $regex, $min = 1, $max = '')
-	{
-		return $min === 0 || preg_match(self::formatRegex($regex, $min, $max), addslashes($value));
-	}
 	
 	protected function formatData($value, $regex)
 	{
 		switch ($regex)
 		{
+			case self::NUM:
+				return (int) $value;
+				break;
+				
 			case self::PWD:
 				return md5($value);
 				break;
@@ -60,8 +59,22 @@ class CleanCodeModel extends CleanCodeClass
 				return ucwords(strtolower($value));
 				break;
 				
-			default: return $value;
+			case self::HTML:
+				return preg_replace('/^<\?.*\?>$/', '', $value);
+				break;
+		
+			case self::BOOLEAN:
+				return $value? 1:0;
+				break;
+				
+			default:
+				return strip_tags($value);
 		}
+	}
+
+	protected function validate($value, $regex, $min = 1, $max = '')
+	{
+		return $min === 0 && strlen($value) == 0 || preg_match(self::formatRegex($regex, $min, $max), addslashes($value));
 	}
 	
 	public function check()
