@@ -36,7 +36,7 @@ class CleanCodeUser extends CleanCodeDefaultDAO
 	{
 		if ($password != $confirm)
 		{
-			$this->setError('A nova senha e a confirmação devem ser iguais!');
+			$this->setError(self::msg('password_confirm_error'));
 		}
 		else
 		{
@@ -48,13 +48,19 @@ class CleanCodeUser extends CleanCodeDefaultDAO
 	{
 		if(md5($currentPassword) != $this->getPassword())
 		{
-			$this->setError('Senha atual incorreta!');
+			$this->setError(self::msg('password_incorrect'));
 			return false;
 		}
 		else if ($this->confirmPassword($newPassword, $confirm))
 		{
 			return $this->update();
 		}
+	}
+	
+	public function auth()
+	{
+		return $this->execute($this->loadFromDB(),
+				self::msg('login_ok'), self::msg('login_failed'));
 	}
 }
 ?>

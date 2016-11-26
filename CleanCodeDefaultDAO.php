@@ -16,6 +16,7 @@ class CleanCodeDefaultDAO extends CleanCodeDAO
 	public function setID($id)
 	{
 		$this->set_column('id', $id, self::NUM);
+		$this->memorize();
 	}
 	
 	protected function set_primary_key($pk)

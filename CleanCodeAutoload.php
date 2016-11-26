@@ -50,7 +50,7 @@ class CleanCodeAutoload extends CleanCodeClass
 		}
 		else
 		{
-			die('Diretório ' . $path . ' não encontrado!');
+			die(self::msg('directory_not_found', $path));
 		}
 	}
 	

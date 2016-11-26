@@ -2,16 +2,17 @@
 class CleanCodeClass
 {
 	protected static $debug = false;
+	
+	protected static $messages = array(
+			'directory_not_found' => 'Directory %s is not found!',
+			'php_version_error' => 'CleanCode Framework requires PHP 5.3 or more. (Actually: %s)',
+			'password_incorrect' => 'Incorrect password!',
+			'password_confirm_error' => 'Password confirmation doesn\'t match Password',
+			'login_ok' => 'Redirecting...',
+			'login_failed' => 'Login failed!'
+	);
 
 	const PHP_REQUIRED_VERSION = '5.3';
-	
-	public static function checkPhpVersion()
-	{
-		if(!defined('PHP_VERSION') || PHP_VERSION < self::PHP_REQUIRED_VERSION)
-		{
-			die('CleanCode Framework require PHP 5.3 or more. (Actually: ' . PHP_VERSION . ')');
-		}
-	}
 	
 	public static function debugMode()
 	{
@@ -21,6 +22,19 @@ class CleanCodeClass
 	protected static function searchPos($array, $pos, $default = '')
 	{
 		return isset($array[$pos]) && $array[$pos]? $array[$pos] : $default;
+	}
+	
+	protected static function msg($label, $var = '')
+	{
+		return sprintf(self::searchPos(self::$messages, $label, '???'), $var);
+	}
+	
+	public static function checkPhpVersion()
+	{
+		if(!defined('PHP_VERSION') || PHP_VERSION < self::PHP_REQUIRED_VERSION)
+		{
+			die(self::msg('php_version_error', PHP_VERSION));
+		}
 	}
 	
 	protected static function toCamelCase($uri)
