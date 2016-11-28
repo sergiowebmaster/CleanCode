@@ -104,7 +104,7 @@ class CleanCodeModel extends CleanCodeClass
 	
 	protected function setErrorByField($fieldError)
 	{
-		$this->setError('Invalid ' . $fieldError . '!');
+		$this->setError(self::msg('validation_field_error', $fieldError));
 	}
 	
 	public function load($data)

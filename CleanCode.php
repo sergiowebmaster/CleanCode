@@ -14,5 +14,13 @@ class CleanCode extends CleanCodeClass
 	{
 		$autoload = new CleanCodeAutoload();
 	}
+	
+	public static function setCoreMessages($messages)
+	{
+		foreach ($messages as $key => $means)
+		{
+			self::$messages[$key] = addslashes($means);
+		}
+	}
 }
 ?>

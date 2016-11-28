@@ -395,6 +395,16 @@ class CleanCodeController extends CleanCodeClass
 	{
 		$this->user = new CleanCodeUser();
 	}
+
+	/*
+	 * Set the user and filter, by session, for restrict routes.
+	 * @access protected
+	 * @return void
+	 */
+	protected function identifyUser($sessionValue)
+	{
+		$this->user->setID($sessionValue);
+	}
 	
 	/*
 	 * Set the login data of the user.
@@ -408,25 +418,26 @@ class CleanCodeController extends CleanCodeClass
 	}
 
 	/*
+	 * Get the user session and reload the page.
+	 * @access	protected
+	 * @param	String		$defaultValue	A default value, if the session is not founded.
+	 * @return	void
+	 */
+	protected function getUserSession($defaultValue = '')
+	{
+		return $this->getSession($this->userSession, $defaultValue);
+	}
+
+	/*
 	 * Set the user session and reload the page.
 	 * @access	protected
-	 * @param	String		$defaultLanguage	The default language, if not have cookie.
+	 * @param	String		$sessionValue	The value for set the session of the user.
 	 * @return	void
 	 */
 	protected function setUserSession($sessionValue)
 	{
 		$this->setSession($this->userSession, $sessionValue);
 		$this->refresh();
-	}
-
-	/*
-	 * Set the user and filter, by session, for restrict routes.
-	 * @access protected
-	 * @return void
-	 */
-	protected function identifyUser($sessionValue)
-	{
-		$this->user->setID($sessionValue);
 	}
 
 	/*
@@ -814,7 +825,7 @@ class CleanCodeController extends CleanCodeClass
 		
 		if($this->user)
 		{
-			$this->identifyUser($this->getSession($this->userSession, 0));
+			$this->identifyUser($this->getUserSession(0));
 			$this->user->loadFromDB()? $this->selectRestrictRoute($uri) : $this->selectLoginRoute($uri);
 		}
 		else

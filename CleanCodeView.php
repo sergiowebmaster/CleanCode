@@ -194,23 +194,31 @@ class CleanCodeView extends CleanCodeClass
 		self::$info['js'][] = $src;
 	}
 	
+	private function add($filename, $alternativeHTML)
+	{
+		extract($this->data);
+		extract(self::$global);
+		extract(self::$info);
+
+		$filepath = self::$path . $filename;
+		
+		if(file_exists($filepath)) include $filepath;
+		else echo $alternativeHTML;
+	}
+	
+	private function renderHTML()
+	{
+		$this->add($this->layout, self::msg('view_not_found'));
+	}
+	
 	private function toJSON()
 	{
 		header('Content-Type: text/plain');
 		echo json_encode($this->data);
 	}
 	
-	private function renderHTML()
-	{
-		extract($this->data);
-		extract(self::$global);
-		extract(self::$info);
-		include self::$path . $this->layout;
-	}
-	
 	public function show()
 	{
-		$filename = self::$path . $this->layout;
 		$this->layout? $this->renderHTML() : $this->toJSON();
 	}
 }

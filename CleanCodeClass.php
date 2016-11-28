@@ -5,6 +5,9 @@ class CleanCodeClass
 	
 	protected static $messages = array(
 			'directory_not_found' => 'Directory %s is not found!',
+			'upload_error' => 'Upload failed!',
+			'validation_field_error' => 'Invalid %s!',
+			'view_not_found' => '%s is not found!',
 			'php_version_error' => 'CleanCode Framework requires PHP 5.3 or more. (Actually: %s)',
 			'password_incorrect' => 'Incorrect password!',
 			'password_confirm_error' => 'Password confirmation doesn\'t match Password',

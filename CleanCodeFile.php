@@ -54,11 +54,6 @@ class CleanCodeFile extends CleanCodeModel
 		$this->filter = explode('|', $extensions);
 	}
 	
-	protected function setErrorByField($fieldError)
-	{
-		$this->setError('Invalid ' . $fieldError . '! ');
-	}
-	
 	public function setFolder($folder)
 	{
 		$this->folder = $folder;

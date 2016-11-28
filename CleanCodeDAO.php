@@ -208,7 +208,7 @@ class CleanCodeDAO extends CleanCodeModel
 		{
 			if(!$file->send())
 			{
-				$this->setError('Upload failed!');
+				$this->setError(self::msg('upload_error'));
 				$send = false;
 				break;
 			}
