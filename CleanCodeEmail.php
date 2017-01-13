@@ -44,6 +44,12 @@ class CleanCodeEmail extends CleanCodeModel
 		}
 	}
 	
+	public function from($email, $name)
+	{
+		$this->setFromEmail($email);
+		$this->setFromName($name);
+	}
+	
 	public function getToEmail()
 	{
 		return $this->to_email;
@@ -76,6 +82,12 @@ class CleanCodeEmail extends CleanCodeModel
 		{
 			$this->setErrorByField('to_name');
 		}
+	}
+	
+	public function to($email, $name)
+	{
+		$this->setToEmail($email);
+		$this->setToName($name);
 	}
 	
 	public function getSubject()

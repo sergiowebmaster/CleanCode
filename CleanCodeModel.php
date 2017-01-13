@@ -4,7 +4,7 @@ require_once 'CleanCodeClass.php';
 class CleanCodeModel extends CleanCodeClass
 {
 	const ALL	 	= '/^[\w\W]{min,max}$/i';
-	const HTML		= '/[<>]{0,}/';
+	const HTML		= '/[<>\w]{min,max}/';
 	const NAME	 	= '/^[a-záàâãçéèêëíìóôõöúüÁÀÂÃÇÉÈÊËÍÌÓÒÔÕÖÚÙÜ ]{min,max}$/i';
 	const LOGIN 	= '/^[a-z0-9\-_\.]{min,max}$/';
 	const URI 	 	= '/^[a-z0-9\-\/_]{min,max}$/i';

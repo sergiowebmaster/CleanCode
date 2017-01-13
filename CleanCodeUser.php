@@ -5,7 +5,17 @@ class CleanCodeUser extends CleanCodeDefaultDAO
 {
 	protected static $table = 'users';
 	
+	public static $means = array(
+			'Redirecting...',
+			'Login failed!',
+			'Incorrect password!',
+			'Password confirmation doesn\'t match Password',
+			'The current password is incorrect!'
+	);
+	
 	private static $pwdField = 'password';
+	
+	public $sessionName = 'user';
 	
 	public static function setPwdField($fieldName)
 	{
@@ -32,35 +42,33 @@ class CleanCodeUser extends CleanCodeDefaultDAO
 		$this->set_column(self::$pwdField, $password, self::PWD);
 	}
 	
+	protected function checkCurrentPassword($password)
+	{
+		return $this->execute(md5($password) == $this->getPassword(), '', 'Senha atual incorreta!');
+	}
+	
 	public function confirmPassword($password, $confirm)
 	{
-		if ($password != $confirm)
+		if ($password == $confirm)
 		{
-			$this->setError(self::msg('password_confirm_error'));
+			$this->setPassword($password);
+			return true;
 		}
 		else
 		{
-			$this->setPassword($password);
+			$this->setError('A confirmação não confere!');
+			return false;
 		}
 	}
 	
 	public function changePassword($currentPassword, $newPassword, $confirm)
 	{
-		if(md5($currentPassword) != $this->getPassword())
-		{
-			$this->setError(self::msg('password_incorrect'));
-			return false;
-		}
-		else if ($this->confirmPassword($newPassword, $confirm))
-		{
-			return $this->update();
-		}
+		return $this->checkCurrentPassword($currentPassword) && $this->confirmPassword($newPassword, $confirm) && $this->execute($this->update(), 'Senha alterada com sucesso!');
 	}
 	
 	public function auth()
 	{
-		return $this->execute($this->loadFromDB(),
-				self::msg('login_ok'), self::msg('login_failed'));
+		return $this->execute($this->loadFromDB(), self::getMeans(0), self::getMeans(1));
 	}
 }
 ?>

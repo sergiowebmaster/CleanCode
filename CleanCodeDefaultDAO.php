@@ -3,9 +3,9 @@ require_once 'CleanCodeDAO.php';
 
 class CleanCodeDefaultDAO extends CleanCodeDAO
 {
-	public static function listByID()
+	public static function listByID($desc = false)
 	{
-		return self::fetchAllBy('id');
+		return self::fetchAllBy('id' . ($desc? ' DESC' : ''));
 	}
 	
 	public function getID()

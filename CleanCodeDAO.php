@@ -17,11 +17,7 @@ class CleanCodeDAO extends CleanCodeModel
 	
 	public static function getTable($alias = '')
 	{
-		$table = static::$table;
-		
-		if($alias) $table .= ' ' . $alias;
-		
-		return $table;
+		return trim(static::$table . ' ' . $alias);
 	}
 	
 	public static function setQtyByPage($qty)
@@ -29,9 +25,17 @@ class CleanCodeDAO extends CleanCodeModel
 		static::$qtyByPage = $qty;
 	}
 	
-	protected static function createSQL($alias = '')
+	protected static function sql($query)
 	{
-		return new CleanCodeSQL(static::$table, $alias);
+		return new CleanCodeSQL($query);
+	}
+	
+	protected static function getSQL($alias = '')
+	{
+		$sql = self::sql('');
+		$sql->setTable(static::$table, $alias);
+		
+		return $sql;
 	}
 	
 	public static function getInstance()
@@ -68,7 +72,8 @@ class CleanCodeDAO extends CleanCodeModel
 	{
 		if($file->getTmpName() || $required)
 		{
-			$this->set_column($columnName, $file->getName(), self::FILE, 5);
+			$this->setError($file->getError());
+			$this->set_column($columnName, $file->getName(), self::FILE);
 			$this->uploads[] = $file;
 		}
 	}
@@ -100,7 +105,7 @@ class CleanCodeDAO extends CleanCodeModel
 	
 	protected static function select($fields = '*')
 	{
-		return self::createSQL()->select($fields);
+		return self::getSQL()->select($fields);
 	}
 	
 	protected function selectByData()
@@ -120,7 +125,7 @@ class CleanCodeDAO extends CleanCodeModel
 	
 	public static function fetchNumRows()
 	{
-		return self::createSQL()->count();
+		return self::getSQL()->count();
 	}
 	
 	public static function fetchNumPages()
@@ -239,7 +244,7 @@ class CleanCodeDAO extends CleanCodeModel
 		}
 		else
 		{
-			$query = self::createSQL()->insert($this->data);
+			$query = self::getSQL()->insert($this->data);
 			
 			if($query->execute())
 			{
@@ -260,7 +265,7 @@ class CleanCodeDAO extends CleanCodeModel
 	
 	private function updateFromDB()
 	{
-		return $this->getError()? false : self::createSQL()->update($this->data)->where($this->cache)->execute();
+		return $this->getError()? false : self::getSQL()->update($this->data)->where($this->cache)->execute();
 	}
 	
 	protected function update()
@@ -270,7 +275,7 @@ class CleanCodeDAO extends CleanCodeModel
 	
 	protected function delete()
 	{
-		return $this->getError()? false : self::createSQL()->delete()->where($this->data)->execute();
+		return $this->getError()? false : self::getSQL()->delete()->where($this->data)->execute();
 	}
 	
 	public function toArray()

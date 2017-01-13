@@ -24,12 +24,6 @@ class CleanCodeController extends CleanCodeClass
 	 * Instance of CleanCodeUser.
 	 * @var object
 	 */
-	protected static $globalUser;
-
-	/*
-	 * Instance of CleanCodeUser.
-	 * @var object
-	 */
 	protected $user;
 
 	/*
@@ -49,6 +43,12 @@ class CleanCodeController extends CleanCodeClass
 	 * @var object
 	 */
 	protected $model;
+
+	/*
+	 * The form actions of the page.
+	 * @var array
+	 */
+	protected $actions = array();
 	
 	/*
 	 * Get the value of a GET variable.
@@ -225,6 +225,11 @@ class CleanCodeController extends CleanCodeClass
 		return $_SERVER['HTTP_USER_AGENT'];
 	}
 	
+	protected function allowOrigin($urlOrigin)
+	{
+		header('access-control-allow-origin: ' . $urlOrigin);
+	}
+	
 	/*
 	 * Read the URI requested by the user.
 	 * @access protected
@@ -323,10 +328,10 @@ class CleanCodeController extends CleanCodeClass
 
 	/*
 	 * Select the configuration for the current host.
-	 * @access protected
+	 * @access public
 	 * @return void
 	 */
-	protected function selectHostConfig()
+	public function selectEnvironment()
 	{
 		switch (self::getHostname())
 		{
@@ -385,47 +390,20 @@ class CleanCodeController extends CleanCodeClass
 	{
 		return $this->post('action');
 	}
-
-	/*
-	 * Set the model user for restrict areas.
-	 * @access protected
-	 * @return void
-	 */
-	protected function setDefaultUser()
+	
+	protected function doAction()
 	{
-		$this->user = new CleanCodeUser();
-	}
-
-	/*
-	 * Set the user and filter, by session, for restrict routes.
-	 * @access protected
-	 * @return void
-	 */
-	protected function identifyUser($sessionValue)
-	{
-		$this->user->setID($sessionValue);
+		if($method = self::searchPos($this->actions, $this->getAction()))
+		{
+			$this->$method();
+		}
 	}
 	
-	/*
-	 * Set the login data of the user.
-	 * @access protected
-	 * @return void
-	 */
-	protected function prepareLogin()
+	protected function onSubmit($actions)
 	{
-		$this->user->setEmail($this->post('email'));
-		$this->user->setPassword($this->post('password'));
-	}
-
-	/*
-	 * Get the user session and reload the page.
-	 * @access	protected
-	 * @param	String		$defaultValue	A default value, if the session is not founded.
-	 * @return	void
-	 */
-	protected function getUserSession($defaultValue = '')
-	{
-		return $this->getSession($this->userSession, $defaultValue);
+		$this->actions = $actions;
+		$this->doAction();
+		$this->setMessagesByModel();
 	}
 
 	/*
@@ -436,88 +414,69 @@ class CleanCodeController extends CleanCodeClass
 	 */
 	protected function setUserSession($sessionValue)
 	{
-		$this->setSession($this->userSession, $sessionValue);
-		$this->refresh();
+		$this->setSession($this->user->sessionName, $sessionValue);
 	}
-
+	
 	/*
-	 * Check if have user instance and if is found.
-	 * @access private
+	 * Set the filter of user, for login.
+	 * @access protected
 	 * @return void
 	 */
-	private function checkUser()
+	protected function filterUserForLogin()
 	{
-		return $this->user && $this->user->loadFromDB();
+		$this->user->setEmail($this->post('email'));
+		$this->user->setPassword($this->post('password'));
+	}
+	
+	protected function setUser()
+	{
+		$this->user = new CleanCodeUser();
+	}
+	
+	protected function filterUser($sessionValue)
+	{
+		$this->user->setID($sessionValue);
+	}
+	
+	protected function setUserData()
+	{
+		$var = lcfirst(get_class($this->user));
+		self::$view->data[$var] = $this->user->toArray();
+	}
+	
+	protected function checkUser()
+	{
+		$this->setUser();
+		$this->filterUser($this->getSession($this->user->sessionName, 0));
+		$this->user->loadFromDB();
+		$this->setUserData();
 	}
 
 	/*
-	 * Set the user session and refresh the page.
+	 * Authenticate the user.
 	 * @access protected
 	 * @return void
 	 */
 	protected function authUser()
 	{
 		$this->setUserSession($this->user->getID());
+		$this->refresh();
 	}
 	
 	/*
 	 * Send the login data of the user and set a session, if this user is founded.
-	 * @access private
-	 * @return void
-	 */
-	private function doLogin()
-	{
-		if($this->getAction() && $this->user->auth())
-		{
-			$this->authUser();
-		}
-	}
-
-	/*
-	 * Set the messages in the view.
 	 * @access protected
-	 * @param	String	$error		The error message.
-	 * @param	String	$success	The success message.
 	 * @return void
 	 */
-	protected function setMessages($error, $success)
+	protected function doLogin()
 	{
-		self::$view->data['error'] = $error;
-		self::$view->data['success'] = $success;
-	}
-
-	/*
-	 * Set the view messages by the model.
-	 * @access	protected
-	 * @return	void
-	 */
-	protected function setMessagesByModel()
-	{
-		$this->setMessages($this->model->getError(), $this->model->getSuccess());
-	}
-
-	/*
-	 * Set the view messages by the user.
-	 * @access	protected
-	 * @return	void
-	 */
-	protected function setMessagesByUser()
-	{
-		$this->setMessages($this->user->getError(), $this->user->getSuccess());
+		$this->filterUserForLogin();
+		if($this->user->auth()) $this->authUser();
 	}
 	
-	/*
-	 * Call the login function.
-	 * @access	protected
-	 * @return	void
-	 */
-	protected function auth()
+	protected function checkLoginAction()
 	{
-		if($this->getAction())
-		{
-			$this->prepareLogin();
-			$this->doLogin();
-		}
+		return $this->getAction() != '';
 	}
 
 	/*
@@ -528,8 +487,64 @@ class CleanCodeController extends CleanCodeClass
 	 */
 	protected function doLogout($path = './')
 	{
-		$this->unsetSession($this->userSession);
+		$this->unsetSession($this->user->sessionName);
 		$this->redirect($path);
+	}
+
+	/*
+	 * Set the messages in the view.
+	 * @access	protected
+	 * @param	String	$error		The error message.
+	 * @param	String	$success	The success message.
+	 * @return	void
+	 */
+	protected function setMessages($error, $success)
+	{
+		self::$view->data['error'] = $error;
+		self::$view->data['success'] = $success;
+	}
+	
+	/*
+	 * Clear the messages in the view.
+	 * @access	public
+	 * @param	String	$error		The error message.
+	 * @param	String	$success	The success message.
+	 * @return	void
+	 */
+	public function clearMessages()
+	{
+		$this->setMessages('', '');
+	}
+
+	/*
+	 * Set the messages in the view, by a model object.
+	 * @access protected
+	 * @param	CleanCodeModel	$model		The model object.
+	 * @return	void
+	 */
+	protected function setMessagesBy(CleanCodeModel $model)
+	{
+		$this->setMessages($model->getError(), $model->getSuccess());
+	}
+
+	/*
+	 * Set the view messages by the model.
+	 * @access	public
+	 * @return	void
+	 */
+	public function setMessagesByModel()
+	{
+		$this->setMessagesBy($this->model);
+	}
+
+	/*
+	 * Set the view messages by the user.
+	 * @access	public
+	 * @return	void
+	 */
+	public function setMessagesByUser()
+	{
+		$this->setMessagesBy($this->user);
 	}
 
 	/*
@@ -537,7 +552,7 @@ class CleanCodeController extends CleanCodeClass
 	 * @access protected
 	 * @return void
 	 */
-	protected function setDefaultModel()
+	protected function setModel()
 	{
 		$this->model = new CleanCodeDaoUri();
 	}
@@ -563,69 +578,13 @@ class CleanCodeController extends CleanCodeClass
 	}
 
 	/*
-	 * Configure the view for to show the index page.
+	 * Set the current view instance.
 	 * @access protected
 	 * @return void
 	 */
-	protected function showIndexPage()
+	protected function setAjaxView()
 	{
-		self::$view->setTitle('Welcome');
-		self::$view->setDescription('This is the index page.');
-	}
-
-	/*
-	 * Configure the view for to show a dynamic page.
-	 * @access protected
-	 * @return void
-	 */
-	protected function showDynamicPage()
-	{
-		self::$view->setTitle('Dynamic Page');
-		self::$view->setDescription('This is a dynamic page.');
-	}
-
-	/*
-	 * Configure the view for to show the login page, for a restrict area.
-	 * @access protected
-	 * @return void
-	 */
-	protected function showLoginPage()
-	{
-		self::$view->setTitle('Login');
-		self::$view->setDescription('Do login for access the restrict area.');
-	}
-
-	/*
-	 * Configure the view for to show the internal page, for a restrict area.
-	 * @access protected
-	 * @return void
-	 */
-	protected function showRestrictPage()
-	{
-		self::$view->setTitle('Restrict Page');
-		self::$view->setDescription('This is a restrict page.');
-	}
-
-	/*
-	 * Configure the view for to show the admin index page.
-	 * @access protected
-	 * @return void
-	 */
-	protected function showAdminPage()
-	{
-		self::$view->setTitle('Admin Page');
-		self::$view->setDescription('This is a admin page.');
-	}
-
-	/*
-	 * Configure the view for to show the admin edit page.
-	 * @access protected
-	 * @return void
-	 */
-	protected function showEditPage($id)
-	{
-		self::$view->setTitle('Edit Page');
-		self::$view->setDescription('Edit your model.');
+		self::$view = new CleanCodeView('');
 	}
 
 	/*
@@ -638,6 +597,66 @@ class CleanCodeController extends CleanCodeClass
 		self::$view->setRobots(false, false);
 		self::$view->setTitle('404 Error');
 		self::$view->setDescription('This page is not found.');
+	}
+
+	/*
+	 * Configure the view for to show the index page.
+	 * @access protected
+	 * @return void
+	 */
+	protected function showIndexPage()
+	{
+		$this->show404Error();
+	}
+
+	/*
+	 * Configure the view for to show a dynamic page.
+	 * @access protected
+	 * @return void
+	 */
+	protected function showDynamicPage()
+	{
+		$this->show404Error();
+	}
+
+	/*
+	 * Configure the view for to show the login page, for a restrict area.
+	 * @access protected
+	 * @return void
+	 */
+	protected function showLoginPage()
+	{
+		$this->show404Error();
+	}
+
+	/*
+	 * Configure the view for to show the internal page, for a restrict area.
+	 * @access protected
+	 * @return void
+	 */
+	protected function showRestrictPage()
+	{
+		$this->show404Error();
+	}
+
+	/*
+	 * Configure the view for to show the admin index page.
+	 * @access protected
+	 * @return void
+	 */
+	protected function showAdminPage()
+	{
+		$this->show404Error();
+	}
+
+	/*
+	 * Configure the view for to show the admin edit page.
+	 * @access protected
+	 * @return void
+	 */
+	protected function showEditPage()
+	{
+		$this->show404Error();
 	}
 
 	/*
@@ -658,18 +677,48 @@ class CleanCodeController extends CleanCodeClass
 	 */
 	protected function searchPK($pk)
 	{
-		$this->model && $this->model->loadByPK($pk)? $this->showAdminPage() : $this->show404Error();
+		$this->model && $this->model->loadByPK($pk)? $this->showEditPage() : $this->show404Error();
 	}
 
 	/*
-	 * Search the dao model by your URI slug. If not found, show the 404 error.
+	 * Search the dao model by a slug of URI. If not found, show the 404 error.
 	 * @access protected
-	 * @param String $uri The URI value in the database table.
+	 * @param String		$uri	The URI slug.
 	 * @return void
 	 */
 	public function searchUri($uri)
 	{
-		$this->model && $this->model->loadByURI($uri)? $this->showDynamicPage() : $this->show404Error();
+		$this->model && $this->model->loadByUri($uri)? $this->showDynamicPage() : $this->show404Error();
+	}
+
+	/*
+	 * Select the ajax page by the current URI slug.
+	 * @access protected
+	 * @param String $uri The current slug.
+	 * @return void
+	 */
+	protected function selectAjaxRoute($uri)
+	{
+		switch ($uri)
+		{
+			case '':
+				if($this->model) self::$view->data = $this->model->toArray();
+				break;
+				
+			default:
+				$this->show404Error();
+		}
+	}
+
+	/*
+	 * Select the ajax page by the current URI slug.
+	 * @access protected
+	 * @param String $uri The current slug.
+	 * @return void
+	 */
+	protected function selectRestrictAjax($uri)
+	{
+		$this->selectAjaxRoute($uri);
 	}
 	
 	/*
@@ -686,8 +735,19 @@ class CleanCodeController extends CleanCodeClass
 				$this->showAdminPage();
 				break;
 				
+			case 'ajax':
+				$this->setAjaxView();
+				$this->selectRestrictAjax($this->getNextSlug());
+				break;
+				
+			case 'new':
+				$this->showEditPage();
+				$this->setMessagesByModel();
+				break;
+				
 			default:
-				$this->showEditForm($uri);
+				$this->searchPK($uri);
+				$this->setMessagesByModel();
 		}
 	}
 
@@ -705,29 +765,13 @@ class CleanCodeController extends CleanCodeClass
 				$this->showIndexPage();
 				break;
 				
+			case 'ajax':
+				$this->setAjaxView();
+				$this->selectAjaxRoute($this->getNextSlug());
+				break;
+				
 			default:
 				$this->searchUri($uri);
-		}
-	}
-
-	/*
-	 * Select the public page by the current URI slug, with login page how index.
-	 * @access protected
-	 * @param String $uri The current slug.
-	 * @return void
-	 */
-	protected function selectLoginRoute($uri)
-	{
-		switch ($uri)
-		{
-			case '':
-				$this->auth();
-				$this->setMessagesByUser();
-				$this->showLoginPage();
-				break;
-		
-			default:
-				$this->selectPublicRoute($uri);
 		}
 	}
 
@@ -743,6 +787,12 @@ class CleanCodeController extends CleanCodeClass
 		{
 			case '':
 				$this->showRestrictPage();
+				$this->setMessagesByUser();
+				break;
+				
+			case 'ajax':
+				$this->setAjaxView();
+				$this->selectRestrictAjax($this->getNextSlug());
 				break;
 				
 			case 'logout':
@@ -755,53 +805,24 @@ class CleanCodeController extends CleanCodeClass
 	}
 
 	/*
-	 * Select the ajax page by the current URI slug.
+	 * Select the restrict page by the current URI slug.
 	 * @access protected
 	 * @param String $uri The current slug.
 	 * @return void
 	 */
-	protected function selectAjaxRoute($uri)
+	protected function selectLoginRoute($uri)
 	{
 		switch ($uri)
 		{
 			case '':
-				if($this->model) echo json_encode($this->model->toArray());
+				if($this->checkLoginAction()) $this->doLogin();
+				$this->setMessagesByUser();
+				$this->showLoginPage();
 				break;
 				
 			default:
-				$this->show404Error();
+				$this->selectPublicRoute($uri);
 		}
-	}
-
-	/*
-	 * Select the ajax page by the current URI slug.
-	 * @access protected
-	 * @param String $uri The current slug.
-	 * @return void
-	 */
-	protected function selectRestrictAjax($uri)
-	{
-		switch ($uri)
-		{
-			case '':
-				if($this->model) echo json_encode($this->model->toArray());
-				break;
-				
-			default:
-				$this->selectAjaxRoute($uri);
-		}
-	}
-
-	/*
-	 * Send the current URI for select the ajax page.
-	 * @access public
-	 * @return void
-	 */
-	public function ajax()
-	{
-		self::$view = new CleanCodeView('');
-		$uri = $this->getNextSlug();
-		$this->checkUser()? $this->selectRestrictAjax($uri) : $this->selectAjaxRoute($uri);
 	}
 
 	/*
@@ -825,8 +846,7 @@ class CleanCodeController extends CleanCodeClass
 		
 		if($this->user)
 		{
-			$this->identifyUser($this->getUserSession(0));
-			$this->user->loadFromDB()? $this->selectRestrictRoute($uri) : $this->selectLoginRoute($uri);
+			$this->user->toArray()? $this->selectRestrictRoute($uri) : $this->selectLoginRoute($uri);
 		}
 		else
 		{
@@ -852,7 +872,6 @@ class CleanCodeController extends CleanCodeClass
 	public function start()
 	{
 		$this->readUri();
-		$this->selectHostConfig();
 		$this->setView();
 		$this->route();
 		$this->verifyOutURI();

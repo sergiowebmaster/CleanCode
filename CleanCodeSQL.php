@@ -11,10 +11,10 @@ class CleanCodeSQL extends CleanCodeClass
 	
 	private $pdo;
 	
-	private $table	 = array('', '');
-	private $alias = '';
+	private $table	 = '';
+	private $alias  = '';
+	private $sql	 = '';
 	private $values = array();
-	private $sql	 = array();
 	private $statement;
 	
 	public $error = '';
@@ -49,192 +49,183 @@ class CleanCodeSQL extends CleanCodeClass
 		}
 	}
 	
-	function __construct($table, $alias = '')
+	function __construct($sql)
 	{
-		$this->setTable($table, $alias);
 		$this->connect();
+		$this->sql = $sql;
 	}
 	
-	public function getTable()
+	private function getTable()
 	{
-		return join(' ', $this->table);
+		return join(' ', array($this->table, $this->alias));
 	}
 	
 	public function setTable($table, $alias = '')
 	{
-		$this->table = array($table, $alias);
+		$this->table = $table;
+		$this->alias = $alias;
+	}
+	
+	public function setAlias($alias)
+	{
+		$this->alias = $alias;
 		return $this;
-	}
-	
-	private function setData($data, $sep = ', ')
-	{
-		$fields = array();
-		
-		foreach ($data as $field => $value)
-		{
-			$this->values[] = $value;
-			$fields[] = ($this->alias? $this->alias . '.' : '') . $field . ' = ?';
-		}
-	
-		return join($sep, $fields);
-	}
-	
-	public function addSQL($data)
-	{
-		$query = array();
-		
-		foreach ($data as $clause => $params)
-		{
-			$query[] = $clause;
-			$query[] = is_array($params)? $this->addSQL($params) : $params;
-		}
-		
-		return join(' ', $query);
 	}
 	
 	public function toString()
 	{
-		ksort($this->sql);
-		return join(' ', $this->sql);
+		return $this->sql;
+	}
+	
+	public function add($sql)
+	{
+		$this->sql .= ' ' . $sql;
+		return $this;
+	}
+	
+	private function formatFields($data, $glue)
+	{
+		$this->values = array_merge($this->values, $data);
+		$prefix = $this->alias? $this->alias . '.' : $this->alias;
+		$fields = array();
+		
+		foreach (array_keys($data) as $field)
+		{
+			$fields[] = $prefix . $field . '=:' . $field;
+		}
+		
+		return join($glue, $fields);
+	}
+	
+	private function formatWhere($data)
+	{
+		return '(' . $this->formatFields($data, ' AND ') . ')';
+	}
+	
+	public static function union($queries)
+	{
+		return new self('(' . join(') UNION (', $queries) . ')');
 	}
 	
 	public function select($fields = '*')
 	{
-		$this->sql = array('SELECT '.$fields.' FROM '.$this->getTable());
+		$this->sql = 'SELECT ' . $fields . ' FROM ' . $this->getTable();
 		return $this;
 	}
 	
 	private function join($type, $table, $on)
 	{
-		if(isset($this->sql[0])) $this->sql[0] .= ' '.$type.' JOIN '.$table.' ON '.$on;
-		return $this;
+		return $this->add($type . ' JOIN ' . $table . ' ON ' . $on);
 	}
 	
 	public function innerJoin($table, $on)
 	{
-		$this->join('INNER', $table, $on);
-		return $this;
+		return $this->join('INNER', $table, $on);
 	}
 	
 	public function leftJoin($table, $on)
 	{
-		$this->join('LEFT', $table, $on);
-		return $this;
+		return $this->join('LEFT', $table, $on);
 	}
 	
 	public function rightJoin($table, $on)
 	{
-		$this->join('RIGHT', $table, $on);
-		return $this;
+		return $this->join('RIGHT', $table, $on);
 	}
 	
 	public function insert($data)
 	{
 		$fields = array_keys($data);
 	
-		$this->sql = array('INSERT INTO '.$this->getTable().' ('.join(', ', $fields).') VALUES (:'.join(', :', $fields).')');
+		$this->sql = 'INSERT INTO ' . $this->getTable() . ' (' . join(', ', $fields).') VALUES (:'.join(', :', $fields) . ')';
 		$this->values = $data;
 	
 		return $this;
 	}
 	
-	public function update($fields)
+	public function update($data)
 	{
-		$this->sql = array('UPDATE '.$this->getTable().' SET ' . $this->setData($fields));
+		$this->sql = 'UPDATE ' . $this->getTable() . ' SET ' . $this->formatFields($data, ', ');
 		return $this;
 	}
 	
 	public function delete()
 	{
-		$this->sql = array('DELETE FROM '.$this->getTable());
+		$this->sql = 'DELETE FROM ' . $this->getTable();
 		return $this;
 	}
 	
-	private function recursiveFilter($data, $signal, $sep = ' AND ')
+	private function defineCondition($data)
 	{
-		$fields = array();
-		
-		foreach ($data as $index => $value)
-		{
-			if(is_array($value))
-			{
-				$fields[] = '(' . $this->recursiveFilter($value, $signal, ' OR ') . ')';
-			}
-			else
-			{
-				$alias = $this->alias? $this->alias . '.' : '';
-				$fields[] = $alias . $index . ' ' . $signal . " '$value'";
-			}
-		}
-		
-		return join($sep, $fields);
+		return is_string($data)? $data : $this->formatWhere($data);
 	}
 	
-	public function where($condition, $signal = '=')
+	public function where($condition = '')
 	{
-		if($condition) $this->sql[1] = 'WHERE ' . (is_array($condition)? $this->recursiveFilter($condition, $signal) : $condition);
-		return $this;
+		return $this->add('WHERE')->add($condition? $this->defineCondition($condition) : '1');
 	}
 	
-	private function like($field, $keyword)
+	public function whereAnd($condition = '')
 	{
-		return $field . ' LIKE "%' . $keyword . '%"';
+		return $this->add('AND')->add($this->defineCondition($condition));
 	}
 	
-	public function whereLike($field, $keyword)
+	public function whereOr($condition = '')
 	{
-		return $this->where($this->like($field, $keyword));
+		return $this->add('OR')->add($this->defineCondition($condition));
 	}
 	
-	public function whereLikeData($arrayData)
+	public function like($field, $keyword)
 	{
-		$fields = array();
-		
-		foreach ($arrayData as $field => $keyword)
-		{
-			$fields[] = $this->like($field, $keyword);
-		}
-		
-		return $this->where(join(' OR ', $fields));
+		return $this->add($field . ' LIKE "%' . $keyword . '%"');
+	}
+	
+	public function andLike($field, $keyword)
+	{
+		return $this->whereAnd()->like($field, $keyword);
+	}
+	
+	public function orLike($field, $keyword)
+	{
+		return $this->whereOr()->like($field, $keyword);
 	}
 	
 	public function groupBy($fields)
 	{
-		$this->sql[2] = 'GROUP BY '.$fields;
-		return $this;
+		return $this->add('GROUP BY ' . $fields);
 	}
 	
-	public function orderBy($fields, $desc = false)
+	public function orderBy($fields)
 	{
-		if($desc) $fields .= ' DESC';
-		$this->sql[3] = 'ORDER BY ' . $fields;
-		return $this;
+		return $this->add('ORDER BY ' . $fields);
+	}
+	
+	public function desc()
+	{
+		return $this->add('DESC');
 	}
 	
 	public function limit($quantity, $init = 0)
 	{
-		$this->sql[4] = 'LIMIT '.$init.','.$quantity;
-		return $this;
+		return $this->add('LIMIT ' . $init . ',' . $quantity);
 	}
 	
 	public function execute()
 	{
-		$queryString = $this->toString();
-		
-		if (self::$debug)
-		{
-			echo $queryString;
-			echo '<br>("' . join('", "', $this->values) . '")';
-			echo '<br>';
-		}
-		
-		$this->statement = $this->pdo->prepare($queryString);
+		$this->statement = $this->pdo->prepare($this->toString());
 		$execute = $this->statement->execute($this->values);
 	
 		$errorInfo = $this->statement->errorInfo();
 		self::$lastError = $errorInfo[2]? $errorInfo[2] : '';
 	
 		return $execute;
+	}
+	
+	protected function debug()
+	{
+		echo $this->toString();
+		echo '<br>("' . join('", "', $this->values) . '")';
+		echo '<br>';
 	}
 	
 	public function returnID()

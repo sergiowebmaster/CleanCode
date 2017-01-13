@@ -82,9 +82,25 @@ class CleanCodeView extends CleanCodeClass
 		return self::searchPos($array, $var, $default);
 	}
 	
+	private static function getTagAttribute($attr, $condition)
+	{
+		return $condition? $attr . '="' . $attr . '"' : '';
+	}
+	
 	public static function addAttr($attr, $value, $wanted)
 	{
-		return $value == $wanted? $attr . '="' . $attr . '"' : '';
+		if(is_string($wanted))
+		{
+			return self::getTagAttribute($attr, $value == $wanted);
+		}
+		else if (is_array($wanted))
+		{
+			return self::getTagAttribute($attr, in_array($value, $wanted));
+		}
+		else
+		{
+			return '';
+		}
 	}
 	
 	public static function disable($value)

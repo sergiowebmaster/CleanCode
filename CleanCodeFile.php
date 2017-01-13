@@ -72,7 +72,7 @@ class CleanCodeFile extends CleanCodeModel
 		{
 			$parts = explode('.', $name);
 			$this->name = $name;
-			$this->ext = $parts[1];
+			$this->ext = end($parts);
 		}
 		else
 		{
@@ -111,8 +111,13 @@ class CleanCodeFile extends CleanCodeModel
 	{
 		switch ($type)
 		{
-			case 'image/jpeg':$this->ext = 'jpg'; break;
-			default: $info = explode('/', $type); $this->ext = end($info);
+			case 'image/jpeg':
+				$this->ext = 'jpg';
+				break;
+				
+			default:
+				$info = explode('/', $type);
+				$this->ext = end($info);
 		}
 	}
 	
@@ -186,6 +191,12 @@ class CleanCodeFile extends CleanCodeModel
 			$this->setError('Upload failed!');
 			return false;
 		}
+	}
+	
+	public function getContent($vars = array())
+	{
+		$content = file_get_contents($this->getFullPath());
+		return $vars && is_array($vars)? str_replace(array_keys($vars), $vars, $content) : $content;
 	}
 }
 ?>

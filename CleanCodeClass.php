@@ -1,25 +1,36 @@
 <?php
 class CleanCodeClass
 {
-	protected static $debug = false;
+	private static $debugMode = false;
 	
-	protected static $messages = array(
+	protected static $autoload;
+	
+	protected function setAutoload()
+	{
+		self::$autoload = new CleanCodeAutoload();
+	}
+	
+	private static $messages = array(
 			'directory_not_found' => 'Directory %s is not found!',
 			'upload_error' => 'Upload failed!',
 			'validation_field_error' => 'Invalid %s!',
 			'view_not_found' => '%s is not found!',
-			'php_version_error' => 'CleanCode Framework requires PHP 5.3 or more. (Actually: %s)',
-			'password_incorrect' => 'Incorrect password!',
-			'password_confirm_error' => 'Password confirmation doesn\'t match Password',
-			'login_ok' => 'Redirecting...',
-			'login_failed' => 'Login failed!'
+			'php_version_error' => 'CleanCode Framework requires PHP 5.3 or more. (Actually: %s)'
 	);
+	
+	public static $means = array();
 
 	const PHP_REQUIRED_VERSION = '5.3';
 	
-	public static function debugMode()
+	protected static function showDebug()
 	{
-		static::$debug = true;
+		echo 'Debug mode';
+		self::$debugMode = true;
+	}
+	
+	protected function debug()
+	{
+		// Implement
 	}
 	
 	protected static function searchPos($array, $pos, $default = '')
@@ -27,9 +38,19 @@ class CleanCodeClass
 		return isset($array[$pos]) && $array[$pos]? $array[$pos] : $default;
 	}
 	
+	private static function searchMsg($data, $label, $default, $var = '')
+	{
+		return sprintf(self::searchPos($data, $label, $default), $var);
+	}
+	
 	protected static function msg($label, $var = '')
 	{
-		return sprintf(self::searchPos(self::$messages, $label, '???'), $var);
+		return self::searchMsg(self::$messages, $label, $label, $var);
+	}
+	
+	protected static function getMeans($index, $var = '')
+	{
+		return self::searchMsg(static::$means, $index, 'means' . $index, $var);
 	}
 	
 	public static function checkPhpVersion()
@@ -59,6 +80,11 @@ class CleanCodeClass
 		$replace = array('a', 'e', 'i', 'o', 'u', 'c', '_', '', '/');
 		
 		return preg_replace($search, $replace, strtolower($string));
+	}
+	
+	function __destruct()
+	{
+		if(self::$debugMode) $this->debug();
 	}
 }
 

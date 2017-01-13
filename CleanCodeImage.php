@@ -10,7 +10,7 @@ class CleanCodeImage extends CleanCodeFile
 	private $maxDim = 0;
 	private $thumbs = array();
 	
-	function __construct($extensions = 'jpg|gif|png')
+	function __construct($extensions = 'jpg|jpeg|gif|png')
 	{
 		parent::__construct($extensions);
 	}
