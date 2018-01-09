@@ -8,7 +8,7 @@ class CleanCodeModel extends CleanCodeClass
 	const NAME	 	= '/^[a-záàâãçéèêëíìóôõöúüÁÀÂÃÇÉÈÊËÍÌÓÒÔÕÖÚÙÜ ]{min,max}$/i';
 	const LOGIN 	= '/^[a-z0-9\-_\.]{min,max}$/';
 	const URI 	 	= '/^[a-z0-9\-\/_]{min,max}$/i';
-	const URL	 	= '/^(http|https)+(:\/\/)+(www\.|)+([a-z0-9\.]{5,})$/';
+	const URL	 	= '/^(http|https)+(:\/\/)+(www\.|)+([\w\.\/\?\=\-\_]{min,max})$/';
 	const EMAIL	 	= '/^[_a-z0-9-]+(\.[_a-z0-9-]+)*@[a-z0-9-]+(\.[a-z0-9-]+)*(\.[a-z]{2,3})$/i';
 	const DATE  	= '/^\d{4}\-\d{1,2}\-\d{1,2}$/';
 	const TIME		= '/^\d{1,2}\:\d{1,2}/';
@@ -18,6 +18,7 @@ class CleanCodeModel extends CleanCodeClass
 	const DOUBLE	= '/^[\d\.]{1,}$/';
 	const FILE	 	= '/^([\w_\-\.]{min,max})+(\.\w{2,5})$/';
 	const CPF		= '/^\d{3}\.\d{3}\.\d{3}\-\d{2}$/';
+	const CNPJ		= '/^\d{2}\.\d{3}\.\d{3}\/\d{4}\-\d{2}$/';
 	const TEL_BR	= '/^\(\d{2}\) \d{4,5}\-\d{4}$/';
 	const GENDER	= '/^[FM]$/i';
 	const IP		= '/^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}$/';
@@ -71,10 +72,29 @@ class CleanCodeModel extends CleanCodeClass
 				return strip_tags($value);
 		}
 	}
+	
+	protected function validateByRegex($value, $regex, $min = 1, $max = '')
+	{
+		return ($min === 0 && strlen($value) == 0) || preg_match(self::formatRegex($regex, $min, $max), addslashes($value));
+	}
+	
+	protected function validateRange($number, $min, $max)
+	{
+		return $number >= $min && $number <= $max;
+	}
 
 	protected function validate($value, $regex, $min = 1, $max = '')
 	{
-		return $min === 0 && strlen($value) == 0 || preg_match(self::formatRegex($regex, $min, $max), addslashes($value));
+		switch ($regex)
+		{
+			case self::DATE:
+				$dt = explode('-', $value);
+				return strlen($dt[0]) == 4 && $this->validateRange($dt[1], 1, 12) && $this->validateRange($dt[2], 1, 31) && $this->validateByRegex($value, $regex, $min, $max);
+				break;
+				
+			default:
+				return $this->validateByRegex($value, $regex, $min, $max);
+		}
 	}
 	
 	public function check()
@@ -84,7 +104,7 @@ class CleanCodeModel extends CleanCodeClass
 	
 	public function getSuccess()
 	{
-		return $this->success;
+		return $this->error? '' : $this->success;
 	}
 	
 	public function setSuccess($message)
@@ -107,18 +127,33 @@ class CleanCodeModel extends CleanCodeClass
 		$this->setError(self::msg('validation_field_error', $fieldError));
 	}
 	
+	protected function checkError()
+	{
+		return $this->getError() == '';
+	}
+	
+	protected static function generateSetter($field)
+	{
+		return 'set' . self::toCamelCase($field);
+	}
+	
+	protected function checkMethod($field, $value)
+	{
+		$method = self::generateSetter($field);
+			
+		if(method_exists($this, $method))
+		{
+			$this->$method($value);
+		}
+	}
+	
 	public function load($data)
 	{
 		if($data && is_array($data))
 		{
 			foreach ($data as $field => $value)
 			{
-				$method = 'set' . self::toCamelCase($field);
-					
-				if(method_exists($this, $method))
-				{
-					$this->$method($value);
-				}
+				$this->checkMethod($field, $value);
 			}
 		}
 	}
@@ -135,6 +170,19 @@ class CleanCodeModel extends CleanCodeClass
 			$this->setError($errorMessage);
 			return false;
 		}
+	}
+	
+	protected function prepareFile($name, $tmpName, $type, $size)
+	{
+		print_r(func_get_args());
+	}
+	
+	protected function uploadFiles($files)
+	{
+		CleanCodeFile::prepareMultiple($files, function($name, $tmpName, $type, $size)
+		{
+			static::prepareFile($name, $tmpName, $type, $size);
+		});
 	}
 }
 ?>

@@ -4,6 +4,8 @@ require_once 'CleanCodeDir.php';
 
 class CleanCodeAutoload extends CleanCodeClass
 {
+	public static $instance;
+	
 	/*
 	 * Contains the paths of classes.
 	 * @var array
@@ -12,14 +14,8 @@ class CleanCodeAutoload extends CleanCodeClass
 	
 	function __construct()
 	{
-		$this->setAutoload();
 		$this->addPath(__DIR__ . '/');
 		spl_autoload_register(array($this, 'loadClass'));
-	}
-	
-	protected function setAutoload()
-	{
-		self::$autoload = $this;
 	}
 	
 	/*
@@ -32,7 +28,7 @@ class CleanCodeAutoload extends CleanCodeClass
 	{
 		for ($i=0; $i < count($this->paths); $i++)
 		{
-			$path = CleanCodeDir::translate($this->paths[$i]) . preg_replace(array('/^\w{1,}\\\/', '/\\\/'), '/', $className) . '.php';
+			$path = CleanCodeDir::searchAliasPath($this->paths[$i]) . $className . '.php';
 			
 			if(file_exists($path))
 			{
@@ -78,3 +74,4 @@ class CleanCodeAutoload extends CleanCodeClass
 		true);
 	}
 }
+?>

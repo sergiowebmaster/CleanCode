@@ -23,7 +23,12 @@ class CleanCodeFile extends CleanCodeModel
 	
 	protected function getFolderPath()
 	{
-		return self::format(static::$path . '/' . $this->folder . '/');
+		return self::format(static::$path . $this->folder);
+	}
+	
+	public function getFullPath()
+	{
+		return $this->getFolderPath() . $this->name;
 	}
 	
 	public static function setPath($path)
@@ -31,17 +36,19 @@ class CleanCodeFile extends CleanCodeModel
 		static::$path = CleanCodeDir::translate($path);
 	}
 	
-	public static function prepareMultiple($files, $callback)
+	public static function prepareArray($files)
 	{
-		for($i=0; $i < count($files['name']); $i++)
-		{	
-			$callback($files['name'][$i], $files['tmp_name'][$i], $files['type'][$i], $files['size'][$i]);
+		$array = array();
+		
+		foreach ($files as $item => $data)
+		{
+			for($i=0; $i < count($data); $i++)
+			{
+				$array[$i][$item] = $data[$i];
+			}
 		}
-	}
-	
-	public function getFullPath()
-	{
-		return $this->getFolderPath() . $this->name;
+		
+		return $array;
 	}
 	
 	public static function format($string)
@@ -182,9 +189,9 @@ class CleanCodeFile extends CleanCodeModel
 		{
 			return false;
 		}
-		else if($this->checkType() && $this->upload())
+		else if($this->checkType())
 		{
-			return $this->oldName == '' || $this->oldName == $this->name || $this->deleteOld();
+			return $this->upload();
 		}
 		else
 		{
@@ -195,8 +202,23 @@ class CleanCodeFile extends CleanCodeModel
 	
 	public function getContent($vars = array())
 	{
-		$content = file_get_contents($this->getFullPath());
+		$handle = fopen($this->getFullPath(), 'r');
+		$content = '';
+		
+		while ($line = fgets($handle))
+		{
+			$content .= $line;
+		}
+		
 		return $vars && is_array($vars)? str_replace(array_keys($vars), $vars, $content) : $content;
+	}
+	
+	public function setContent($data)
+	{
+		if(!@file_put_contents($this->getFullPath(), $data))
+		{
+			$this->setError('Failed to update ' . $this->getFullPath());
+		}
 	}
 }
 ?>

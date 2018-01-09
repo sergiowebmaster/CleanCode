@@ -5,7 +5,7 @@ class CleanCodeDefaultDAO extends CleanCodeDAO
 {
 	public static function listByID($desc = false)
 	{
-		return self::fetchAllBy('id' . ($desc? ' DESC' : ''));
+		return self::fetchAllBy('id', $desc);
 	}
 	
 	public function getID()
@@ -19,11 +19,6 @@ class CleanCodeDefaultDAO extends CleanCodeDAO
 		$this->memorize();
 	}
 	
-	protected function set_primary_key($pk)
-	{
-		$this->setID($pk);
-	}
-	
 	public function filterByID()
 	{
 		return $this->fetchBy('id');
@@ -32,6 +27,19 @@ class CleanCodeDefaultDAO extends CleanCodeDAO
 	public function getLastByID()
 	{
 		return $this->fetchLastBy('id');
+	}
+	
+	protected function insertIntoDB()
+	{
+		if(parent::insertIntoDB())
+		{
+			$this->setID(self::$sql->lastInsertId());
+			return true;
+		}
+		else
+		{
+			return false;
+		}
 	}
 }
 ?>

@@ -10,13 +10,20 @@ class CleanCodeDaoUri extends CleanCodeDefaultDAO
 	
 	public function setUri($uri)
 	{
-		$this->set_uri_column($uri);
+		$this->set_uri_column('uri', $uri);
 	}
 	
-	public function loadByUri($uri)
+	protected function formatUri($string)
 	{
-		$this->setUri($uri);
-		return $this->loadFromDB();
+		$this->setUri(CleanCodeDir::format($string));
+	}
+	
+	public static function checkURI($uri)
+	{
+		$obj = new static();
+		$obj->setUri($uri);
+		
+		return $obj->loadFromDB();
 	}
 }
 ?>

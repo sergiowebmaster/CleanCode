@@ -24,5 +24,10 @@ class CleanCodeHelper extends CleanCodeClass
 	{
 		return preg_replace('/\D/', '', $string);
 	}
+	
+	public static function toMoney($float)
+	{
+		return number_format($float, 2, ',', '.');
+	}
 }
 ?>

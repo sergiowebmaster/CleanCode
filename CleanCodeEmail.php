@@ -1,6 +1,8 @@
 <?php
 class CleanCodeEmail extends CleanCodeModel
 {
+	private $contentType = 'text/plain';
+	
 	protected $from_name = '';
 	protected $from_email = '';
 	protected $to_name = '';
@@ -9,6 +11,11 @@ class CleanCodeEmail extends CleanCodeModel
 	protected $message = '';
 	
 	public $charset = 'UTF-8';
+	
+	public function useHTML()
+	{
+		$this->contentType = 'text/html';
+	}
 	
 	public function getFromEmail()
 	{
@@ -34,9 +41,9 @@ class CleanCodeEmail extends CleanCodeModel
 	
 	public function setFromName($name)
 	{
-		if($this->validate($name, self::NAME))
+		if($this->validate($name, self::ALL, 1))
 		{
-			$this->from_name = $this->formatData($name, self::NAME);
+			$this->from_name = $name;
 		}
 		else
 		{
@@ -74,9 +81,9 @@ class CleanCodeEmail extends CleanCodeModel
 	
 	public function setToName($name)
 	{
-		if($this->validate($name, self::NAME))
+		if($this->validate($name, self::ALL, 1))
 		{
-			$this->to_name = $this->formatData($name, self::NAME);
+			$this->to_name = $name;
 		}
 		else
 		{
@@ -117,7 +124,7 @@ class CleanCodeEmail extends CleanCodeModel
 		$break = (PATH_SEPARATOR ==":")? "\r\n" : "\n";
 		
 		$headers  = "MIME-Version: 1.1" . $break;
-		$headers .= "Content-type: text/html; charset=" . $this->charset . $break;
+		$headers .= "Content-type: " . $this->contentType . "; charset=" . $this->charset . $break;
 		$headers .= "From: " . $this->from_name . ' <' . $this->from_email . '>' . $break;
 		$headers .= "Return-Path: " . $this->from_email . $break;
 		

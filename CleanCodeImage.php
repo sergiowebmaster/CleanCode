@@ -40,7 +40,7 @@ class CleanCodeImage extends CleanCodeFile
 			if($thumb->send()) $sends++;
 		}
 		
-		return $sends == count($this->thumbs);
+		return $sends == count($this->thumbs) && parent::send();
 	}
 	
 	public function deleteThumbs()
@@ -98,6 +98,11 @@ class CleanCodeImage extends CleanCodeFile
 		$ext = $this->ext == 'jpg'? 'jpeg' : $this->ext;
 		$create = 'imagecreatefrom' . $ext;
 		$output = 'image'.$ext;
+		
+		if(!is_dir($this->getFolderPath()))
+		{
+			mkdir($this->getFolderPath(), 0777);
+		}
 		
 		if(is_callable($create) && is_callable($output))
 		{

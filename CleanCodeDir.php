@@ -9,7 +9,9 @@ class CleanCodeDir extends CleanCodeClass
 {
 	private static $aliases = array(
 			'controllers' => 'controllers/',
-			'models' => 'models/'
+			'models' => 'models/',
+			'jquery' => 'https://code.jquery.com/jquery-3.2.1.slim.min.js',
+			'bootstrap' => 'http://getbootstrap.com/dist/'
 	);
 	
 	private $path = '';
@@ -22,24 +24,40 @@ class CleanCodeDir extends CleanCodeClass
 	
 	public static function addAlias($alias, $path)
 	{
-		self::$aliases[$alias] = self::format($path);
+		self::$aliases[$alias] = $path;
+	}
+	
+	public static function searchAliasPath($alias)
+	{
+		return self::searchPos(self::$aliases, $alias, $alias);
 	}
 	
 	public static function translate($alias)
 	{
-		if ($alias && strstr(':', $alias))
-		{
-			$parts = explode(':', $alias);
-			return self::searchPos(self::$aliases, $parts[0]) . $parts[1];
-		}
-		else if (isset(self::$aliases[$alias]))
-		{
-			return self::$aliases[$alias];
-		}
-		else
+		if (preg_match('/^(http:|https:)/', $alias))
 		{
 			return $alias;
 		}
+		else
+		{
+			$parts = explode(':', $alias);
+			return count($parts) == 2? self::searchAliasPath($parts[0]) . $parts[1] : $alias;
+		}
+	}
+	
+	public static function img($filename)
+	{
+		return self::translate("img:$filename");
+	}
+	
+	public static function css($filename)
+	{
+		return self::translate("css:$filename");
+	}
+	
+	public static function js($filename)
+	{
+		return self::translate("js:$filename");
 	}
 	
 	function __construct($path)

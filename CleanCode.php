@@ -6,13 +6,13 @@ class CleanCode extends CleanCodeClass
 	const VERSION = 'alpha';
 	
 	/*
-	 * Start an autoload instance.
+	 * Get the autoload instance.
 	 * @access public
 	 * @return void
 	 */
-	public static function useAutoload()
+	public static function getAutoload()
 	{
-		$autoload = new CleanCodeAutoload();
+		return self::$autoload;
 	}
 	
 	public static function setCoreMessages($messages)

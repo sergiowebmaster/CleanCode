@@ -1,47 +1,18 @@
 <?php
 class CleanCodeSQL extends CleanCodeClass
 {
-	private static $dns = 'mysql';
-	private static $host = 'localhost';
-	private static $database = '';
-	private static $user = 'root';
-	private static $password = '';
+	protected $table = '';
+	protected $statement = '';
+	protected $values = array();
+	protected $result;
+	protected $pdo;
 	
-	public static $lastError = '';
-	
-	private $pdo;
-	
-	private $table	 = '';
-	private $alias  = '';
-	private $sql	 = '';
-	private $values = array();
-	private $statement;
-	
-	public $error = '';
-	
-	public static function usePostgree()
-	{
-		self::$dns = 'pgsql';
-	}
-	
-	public static function setDB($dbName, $host = 'localhost')
-	{
-		self::$host	 = $host;
-		self::$database	 = $dbName;
-	}
-	
-	public static function setUser($name, $password)
-	{
-		self::$user	 = $name;
-		self::$password = $password;
-	}
-	
-	protected function connect()
+	function __construct($dns, $host, $database, $user, $password)
 	{
 		try
 		{
-			$this->pdo = new PDO(self::$dns . ':host=' . self::$host.';dbname=' . self::$database, self::$user, self::$password);
-			$this->pdo->query('SET NAMES utf8');
+			$this->pdo = new PDO("$dns:host=$host;dbname=$database", $user, $password);
+			$this->setNames('utf8');
 		}
 		catch (Exception $e)
 		{
@@ -49,73 +20,80 @@ class CleanCodeSQL extends CleanCodeClass
 		}
 	}
 	
-	function __construct($sql)
-	{
-		$this->connect();
-		$this->sql = $sql;
-	}
-	
-	private function getTable()
-	{
-		return join(' ', array($this->table, $this->alias));
-	}
-	
-	public function setTable($table, $alias = '')
+	public function setTable($table)
 	{
 		$this->table = $table;
-		$this->alias = $alias;
-	}
-	
-	public function setAlias($alias)
-	{
-		$this->alias = $alias;
 		return $this;
 	}
 	
-	public function toString()
+	public function prepare($string)
 	{
-		return $this->sql;
+		$this->statement = $string;
+		return $this;
 	}
 	
 	public function add($sql)
 	{
-		$this->sql .= ' ' . $sql;
+		$this->statement .= ' ' . $sql;
 		return $this;
 	}
 	
-	private function formatFields($data, $glue)
+	protected function addValue($value)
 	{
-		$this->values = array_merge($this->values, $data);
-		$prefix = $this->alias? $this->alias . '.' : $this->alias;
+		return $this->add(is_string($value)? "'$value'" : $value);
+	}
+	
+	protected function addField($field, $signal, $value)
+	{
+		return $this->add($field)->add($signal)->addValue($value);
+	}
+	
+	protected function addData($data, $glue)
+	{
 		$fields = array();
 		
-		foreach (array_keys($data) as $field)
+		foreach ($data as $field => $value)
 		{
-			$fields[] = $prefix . $field . '=:' . $field;
+			$fields[] = "$field=:$field";
+			$this->values[$field] = $value;
 		}
 		
-		return join($glue, $fields);
+		return $this->add(join($glue, $fields));
 	}
 	
-	private function formatWhere($data)
+	public function toString()
 	{
-		return '(' . $this->formatFields($data, ' AND ') . ')';
+		return $this->statement;
 	}
 	
-	public static function union($queries)
+	public function sub($sql)
 	{
-		return new self('(' . join(') UNION (', $queries) . ')');
+		return $this->add("($sql)");
 	}
 	
 	public function select($fields = '*')
 	{
-		$this->sql = 'SELECT ' . $fields . ' FROM ' . $this->getTable();
-		return $this;
+		return $this->prepare("SELECT $fields FROM $this->table");
+	}
+	
+	public function selectCount()
+	{
+		return $this->select('COUNT(*) n');
+	}
+	
+	public function count($condition)
+	{
+		return $this->selectCount()->where($condition)->fetch();
+	}
+	
+	public function countAll()
+	{
+		return $this->count('1');
 	}
 	
 	private function join($type, $table, $on)
 	{
-		return $this->add($type . ' JOIN ' . $table . ' ON ' . $on);
+		return $this->add("$type JOIN $table ON $on");
 	}
 	
 	public function innerJoin($table, $on)
@@ -133,71 +111,107 @@ class CleanCodeSQL extends CleanCodeClass
 		return $this->join('RIGHT', $table, $on);
 	}
 	
-	public function insert($data)
+	protected function joinInsertData($data)
 	{
 		$fields = array_keys($data);
-	
-		$this->sql = 'INSERT INTO ' . $this->getTable() . ' (' . join(', ', $fields).') VALUES (:'.join(', :', $fields) . ')';
 		$this->values = $data;
+		
+		return $this->sub(join(', ', $fields))->add('VALUES')->sub(':' . join(', :', $fields));
+	}
 	
-		return $this;
+	public function insert($data)
+	{
+		return $this->prepare('INSERT INTO')->add($this->table)->joinInsertData($data);
 	}
 	
 	public function update($data)
 	{
-		$this->sql = 'UPDATE ' . $this->getTable() . ' SET ' . $this->formatFields($data, ', ');
-		return $this;
+		return $this->prepare('UPDATE')->add($this->table)->add('SET')->addData($data, ',');
 	}
 	
 	public function delete()
 	{
-		$this->sql = 'DELETE FROM ' . $this->getTable();
+		return $this->prepare('DELETE FROM')->add($this->table);
+	}
+	
+	public function where($condition)
+	{
+		return $this->add('WHERE')->add($condition);
+	}
+	
+	public function andWhere($condition)
+	{
+		return $this->add('AND')->add($condition);
+	}
+	
+	public function orWhere($condition)
+	{
+		return $this->add('OR')->add($condition);
+	}
+	
+	protected function andData($data)
+	{
+		foreach ($data as $field => $value)
+		{
+			$this->andWhere($field)->add('=')->addValue($value);
+		}
+		
 		return $this;
 	}
 	
-	private function defineCondition($data)
+	protected function orData($data)
 	{
-		return is_string($data)? $data : $this->formatWhere($data);
+		foreach ($data as $field => $value)
+		{
+			$this->orWhere($field)->add('=')->addValue($value);
+		}
+		
+		return $this;
 	}
 	
-	public function where($condition = '')
+	public function whereData($data)
 	{
-		return $this->add('WHERE')->add($condition? $this->defineCondition($condition) : '1');
+		return $this->where(1)->andData($data);
 	}
 	
-	public function whereAnd($condition = '')
+	public function like($keyword)
 	{
-		return $this->add('AND')->add($this->defineCondition($condition));
+		return $this->add('LIKE')->add('"'.$keyword.'"');
 	}
 	
-	public function whereOr($condition = '')
+	public function likeBegin($keyword)
 	{
-		return $this->add('OR')->add($this->defineCondition($condition));
+		return $this->like("$keyword%");
 	}
 	
-	public function like($field, $keyword)
+	public function likeEnd($keyword)
 	{
-		return $this->add($field . ' LIKE "%' . $keyword . '%"');
+		return $this->like("%$keyword");
 	}
 	
-	public function andLike($field, $keyword)
+	public function likeBoth($keyword)
 	{
-		return $this->whereAnd()->like($field, $keyword);
-	}
-	
-	public function orLike($field, $keyword)
-	{
-		return $this->whereOr()->like($field, $keyword);
+		return $this->like("%$keyword%");
 	}
 	
 	public function groupBy($fields)
 	{
-		return $this->add('GROUP BY ' . $fields);
+		return $this->add('GROUP BY')->add($fields);
 	}
 	
 	public function orderBy($fields)
 	{
-		return $this->add('ORDER BY ' . $fields);
+		return $this->add('ORDER BY')->add($fields);
+	}
+	
+	public function addOrderBy($fields, $desc)
+	{
+		return $desc? $this->orderBy($fields)->desc() : $this->orderBy($fields);
+	}
+	
+	public function orderByRand()
+	{
+		return $this->orderBy('RAND()');
 	}
 	
 	public function desc()
@@ -207,28 +221,27 @@ class CleanCodeSQL extends CleanCodeClass
 	
 	public function limit($quantity, $init = 0)
 	{
-		return $this->add('LIMIT ' . $init . ',' . $quantity);
+		return $this->add('LIMIT')->add("$init,$quantity");
+	}
+	
+	public function paginate($qtyPerPage, $pageNumber)
+	{
+		return $this->limit($qtyPerPage, ($pageNumber - 1) * $qtyPerPage);
 	}
 	
 	public function execute()
 	{
-		$this->statement = $this->pdo->prepare($this->toString());
-		$execute = $this->statement->execute($this->values);
-	
-		$errorInfo = $this->statement->errorInfo();
-		self::$lastError = $errorInfo[2]? $errorInfo[2] : '';
-	
-		return $execute;
+		$this->result = $this->pdo->prepare($this->statement);
+		return $this->result->execute($this->values);
 	}
 	
-	protected function debug()
+	public function getLastError()
 	{
-		echo $this->toString();
-		echo '<br>("' . join('", "', $this->values) . '")';
-		echo '<br>';
+		$errorInfo = $this->result->errorInfo();
+		return $errorInfo[2]? $errorInfo[2] : '';
 	}
 	
-	public function returnID()
+	public function lastInsertId()
 	{
 		return $this->pdo->lastInsertId();
 	} 
@@ -236,33 +249,40 @@ class CleanCodeSQL extends CleanCodeClass
 	public function fetch()
 	{
 		$this->execute();
-		return $this->statement->fetch(PDO::FETCH_ASSOC);
+		return $this->result->fetch(PDO::FETCH_ASSOC);
 	}
 	
 	public function fetchAll()
 	{
 		$this->execute();
-		return $this->statement->fetchAll(PDO::FETCH_ASSOC);
+		return $this->result->fetchAll(PDO::FETCH_ASSOC);
 	}
 	
-	public function fetchBy($fields)
+	public function fetchBy($fields, $desc = false)
 	{
-		return $this->orderBy($fields)->fetchAll();
+		return $this->addOrderBy($fields, $desc)->fetchAll();
 	}
 	
 	public function getRowCount()
 	{
-		return $this->statement->rowCount();
+		return $this->result->rowCount();
 	}
 	
-	public function count($data = array())
+	public function setNames($charset)
 	{
-		return $this->select('COUNT(*) n')->where($data)->fetch()['n'];
+		$this->pdo->query("SET NAMES $charset");
 	}
 	
-	function __destruct()
+	public function close()
 	{
 		$this->pdo = null;
+	}
+	
+	protected function debug()
+	{
+		echo $this->toString();
+		echo '<br>("' . join('", "', $this->values) . '")';
+		echo '<br>';
 	}
 }
 ?>

@@ -8,16 +8,46 @@ class CleanCodeDAO extends CleanCodeModel
 	
 	protected static $table = '';
 	protected static $qtyByPage = 1;
-	protected static $uploadsPath = '';
+	protected static $filesPath = 'uploads/';
+	protected static $db;
 	
 	protected $data = array();
-	protected $where = array();
-	protected $whereSignal = '=';
 	protected $uploads = array();
+	protected $alias = '';
 	
-	public static function getTable($alias = '')
+	public static function getFilesPath()
 	{
-		return trim(static::$table . ' ' . $alias);
+		return static::$filesPath;
+	}
+	
+	public static function getFullPath($filename)
+	{
+		return self::getFilesPath() . $filename;
+	}
+	
+	public static function getTable()
+	{
+		return static::$table;
+	}
+	
+	public static function getTableAlias($alias)
+	{
+		return self::getTable() . ' ' . $alias;
+	}
+	
+	public static function openConnection(CleanCodeSQL $db)
+	{
+		self::$db = $db;
+	}
+	
+	protected static function getConnection()
+	{
+		return self::$db->setTable(self::getTable());
+	}
+	
+	public static function closeConnection()
+	{
+		self::$db->close();
 	}
 	
 	public static function setQtyByPage($qty)
@@ -25,27 +55,19 @@ class CleanCodeDAO extends CleanCodeModel
 		static::$qtyByPage = $qty;
 	}
 	
-	protected static function sql($query)
-	{
-		return new CleanCodeSQL($query);
-	}
-	
-	protected static function getSQL($alias = '')
-	{
-		$sql = self::sql('');
-		$sql->setTable(static::$table, $alias);
-		
-		return $sql;
-	}
-	
 	public static function getInstance()
 	{
 		return new static();
 	}
 	
-	protected static function formatDate($date)
+	public function toArray()
 	{
-		return preg_replace('/(\d{1,2})\/(\d{1,2})\/(\d{4})/', '$3-$2-$1', $date);
+		return $this->data;
+	}
+	
+	public function getFields($separator = ', ')
+	{
+		return join($separator, array_keys($this->data));
 	}
 	
 	protected function get_column($name, $default = '')
@@ -53,34 +75,35 @@ class CleanCodeDAO extends CleanCodeModel
 		return self::searchPos($this->data, $name, $default);
 	}
 	
-	public function memorize()
-	{
-		$this->cache = $this->data;
-	}
-	
 	protected function set_column($name, $value, $regex, $min = 1, $max = '')
 	{
-		$this->data[$name] = $value = $this->formatData($value, $regex);
-		
-		if(!$this->validate($value, $regex, $min, $max))
+		if($this->validate($value, $regex, $min, $max))
+		{
+			$this->data[$name] = $this->formatData($value, $regex);
+		}
+		else
 		{
 			$this->setErrorByField($name);
 		}
 	}
 	
-	protected function set_file_column($columnName, CleanCodeFile $file, $required)
+	protected function set_uri_column($name, $uri, $min = 0)
+	{
+		$this->set_column($name, $uri, self::URI, $min);
+	}
+	
+	protected function set_file_column($name, CleanCodeFile $file, $required)
 	{
 		if($file->getTmpName() || $required)
 		{
-			$this->setError($file->getError());
-			$this->set_column($columnName, $file->getName(), self::FILE);
+			$this->set_column($name, $file->getName(), self::FILE);
 			$this->uploads[] = $file;
 		}
 	}
 	
-	protected function set_date_column($columnName, $value)
+	protected function set_date_column($name, $date)
 	{
-		$this->set_column($columnName, $this->formatDate($value), self::DATE);
+		$this->set_column($name, CleanCodeDate::parseForDB($date), self::DATE);
 	}
 	
 	protected function set_primary_key($pk)
@@ -88,29 +111,39 @@ class CleanCodeDAO extends CleanCodeModel
 		// Implement
 	}
 	
-	protected function set_uri_column($uri)
-	{
-		$this->set_column('uri', $uri, self::URI);
-	}
-	
 	public function getIP()
 	{
 		return $this->get_column('ip');
 	}
 	
-	public function setIP()
+	public function setIP($ip)
 	{
-		$this->set_column('ip', $_SERVER['REMOTE_ADDR'], self::IP);
+		$this->set_column('ip', $ip, self::IP);
 	}
 	
-	protected static function select($fields = '*')
+	public function memorize()
 	{
-		return self::getSQL()->select($fields);
+		$this->cache = $this->data;
+	}
+	
+	protected static function select()
+	{
+		return self::getConnection()->select();
+	}
+	
+	protected static function selectJoin($alias, $fields)
+	{
+		return self::$db->setTable(self::getTableAlias($alias))->select($fields);
 	}
 	
 	protected function selectByData()
 	{
-		return $this->select()->where($this->data);
+		return self::select()->whereData($this->data);
+	}
+	
+	public function fetch()
+	{
+		return $this->getError()? array() : $this->selectByData()->fetch();
 	}
 	
 	public static function fetchAll()
@@ -118,14 +151,14 @@ class CleanCodeDAO extends CleanCodeModel
 		return self::select()->fetchAll();
 	}
 	
-	protected static function fetchAllBy($orderBy)
+	protected static function fetchAllBy($orderBy, $desc = false)
 	{
-		return self::select()->fetchBy($orderBy);
+		return self::select()->fetchBy($orderBy, $desc);
 	}
 	
 	public static function fetchNumRows()
 	{
-		return self::getSQL()->count();
+		return self::$db->count();
 	}
 	
 	public static function fetchNumPages()
@@ -133,9 +166,9 @@ class CleanCodeDAO extends CleanCodeModel
 		return ceil(self::fetchNumRows() / static::$qtyByPage);
 	}
 	
-	protected function fetchBy($orderBy)
+	protected function fetchBy($orderBy, $desc = false)
 	{
-		return $this->selectByData()->fetchBy($orderBy);
+		return $this->selectByData()->fetchBy($orderBy, $desc);
 	}
 	
 	private static function fetchOneBy($orderBy, $desc)
@@ -153,56 +186,20 @@ class CleanCodeDAO extends CleanCodeModel
 		return self::fetchOneBy($orderBy, true);
 	}
 	
-	public function fetch()
-	{
-		$this->memorize();
-		return $this->getError()? array() : $this->selectByData()->fetch();
-	}
-	
-	public function filter()
+	public function toFilter()
 	{
 		return $this->selectByData()->fetchAll();
 	}
 	
-	protected static function paginate($pageNumber, $orderBy, $desc = true)
+	public function filterOne()
 	{
-		$filter = new self();
-		$filter::$table = self::getTable();
-		
-		return $filter->paginateByData($pageNumber, $orderBy, $desc);
-	}
-	
-	protected function paginateByData($pageNumber, $orderBy, $desc = true)
-	{
-		$init = ($pageNumber - 1) * static::$qtyByPage;
-		return $this->selectByData()->orderBy($orderBy, $desc)->limit(static::$qtyByPage, $init)->fetchAll();
+		return $this->selectByData()->fetch();
 	}
 	
 	public function loadFromDB()
 	{
 		$this->data = $this->fetch();
 		return $this->data? true : false;
-	}
-	
-	public function loadByPK($pk)
-	{
-		$this->set_primary_key($pk);
-		$this->memorize();
-		
-		return $this->loadFromDB();
-	}
-	
-	public function loadByUri($uri)
-	{
-		$this->set_uri_column($uri);
-		$this->memorize();
-		
-		return $this->loadFromDB();
-	}
-	
-	protected function beforeInsert($pk)
-	{
-		$this->set_primary_key($pk);
 	}
 	
 	private function sendFiles()
@@ -213,105 +210,93 @@ class CleanCodeDAO extends CleanCodeModel
 		{
 			if(!$file->send())
 			{
-				$this->setError(self::msg('upload_error'));
+				$this->setError($file->getError());
 				$send = false;
-				break;
 			}
 		}
 		
 		return $send;
 	}
 	
-	protected function deleteFile($fileName)
-	{
-		$file = new CleanCodeFile('*');
-		$file->setPath(static::$uploadsPath);
-		$file->setName($fileName);
-		
-		return $file->delete();
-	}
-	
 	protected function execute($operation, $successMessage, $errorMessage = '')
 	{
-		return parent::execute($operation, $successMessage, $errorMessage? $errorMessage : CleanCodeSQL::$lastError);
+		return parent::execute($operation, $successMessage, $errorMessage? $errorMessage : self::$db->getLastError());
 	}
 	
-	private function insertIntoDB()
+	protected function insertIntoDB()
 	{
-		if($this->getError())
+		return $this->checkError() && self::getConnection()->insert($this->data)->execute();
+	}
+	
+	protected function insertWithFiles()
+	{
+		return $this->checkError() && $this->sendFiles() && $this->insertIntoDB();
+	}
+	
+	public function insert()
+	{
+		return $this->execute($this->insertWithFiles(), 'Insert successfuly!');
+	}
+	
+	protected function updateFromDB()
+	{
+		return $this->checkError() && self::getConnection()->update($this->data)->whereData($this->cache)->execute();
+	}
+	
+	protected function updateWithFiles()
+	{
+		return $this->checkError() && $this->sendFiles() && $this->updateFromDB();
+	}
+	
+	public function update()
+	{
+		return $this->execute($this->updateWithFiles(), 'Update successfuly!');
+	}
+	
+	protected function deleteFromDB()
+	{
+		return $this->checkError() && self::getConnection()->delete()->whereData($this->data)->execute();
+	}
+	
+	protected function deleteWithFiles($file1)
+	{
+		foreach (func_get_args() as $filename)
 		{
-			return false;
-		}
-		else
-		{
-			$query = self::getSQL()->insert($this->data);
+			$file = new CleanCodeFile('*');
+			$file->setPath(self::getFilesPath());
+			$file->setName($filename);
+			$file->delete();
 			
-			if($query->execute())
-			{
-				$this->beforeInsert($query->returnID());
-				return true;
-			}
-			else
-			{
-				return false;
-			}
+			$this->setError($file->getError());
 		}
+		
+		return $this->checkError() && $this->deleteFromDB();
 	}
 	
-	protected function insert()
+	protected function deleteWithFolder($folderPath)
 	{
-		return $this->sendFiles() && $this->insertIntoDB();
+		$dir = new CleanCodeDir($folderPath);
+		return $dir->delete() && $this->deleteFromDB();
 	}
 	
-	private function updateFromDB()
+	public function delete()
 	{
-		return $this->getError()? false : self::getSQL()->update($this->data)->where($this->cache)->execute();
-	}
-	
-	protected function update()
-	{
-		return $this->sendFiles() && $this->updateFromDB();
-	}
-	
-	protected function delete()
-	{
-		return $this->getError()? false : self::getSQL()->delete()->where($this->data)->execute();
-	}
-	
-	public function toArray()
-	{
-		return $this->data;
+		return $this->execute($this->deleteFromDB(), 'Delete successfuly!');
 	}
 	
 	public function search()
 	{
-		return self::select()->whereLikeData($this->data)->fetchAll();
+		return self::select()->where($this->data)->fetchAll();
 	}
 	
 	public function toggle()
 	{
-		if($this->insertIntoDB())
-		{
-			return true;
-		}
-		else
-		{
-			$this->delete();
-			return false;
-		}
+		return $this->insertIntoDB() || $this->deleteFromDB();
 	}
 	
-	protected function saveFile($name, $tmpName, $type, $size)
+	public function saveFile(CleanCodeFile $file)
 	{
-		print_r(func_get_args());
-	}
-	
-	protected function uploadFiles($files)
-	{
-		CleanCodeFile::prepareMultiple($files, function($name, $tmpName, $type, $size)
-		{
-			static::saveFile($name, $tmpName, $type, $size);
-		});
+		$this->insertIntoDB();
 	}
 }
 ?>

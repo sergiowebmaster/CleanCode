@@ -3,13 +3,6 @@ class CleanCodeClass
 {
 	private static $debugMode = false;
 	
-	protected static $autoload;
-	
-	protected function setAutoload()
-	{
-		self::$autoload = new CleanCodeAutoload();
-	}
-	
 	private static $messages = array(
 			'directory_not_found' => 'Directory %s is not found!',
 			'upload_error' => 'Upload failed!',
@@ -80,6 +73,11 @@ class CleanCodeClass
 		$replace = array('a', 'e', 'i', 'o', 'u', 'c', '_', '', '/');
 		
 		return preg_replace($search, $replace, strtolower($string));
+	}
+	
+	protected static function returnIfExists($value, $default = '')
+	{
+		return $value? $value : $default;
 	}
 	
 	function __destruct()
