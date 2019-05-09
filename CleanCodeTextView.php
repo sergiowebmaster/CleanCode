@@ -1,16 +1,19 @@
 <?php
+require_once 'CleanCodeView.php';
+
 class CleanCodeTextView extends CleanCodeView
 {
 	protected $text = '';
 	
-	function __construct($text)
+	function __construct($type, $text)
 	{
+		$this->setContentType("text/$type");
 		$this->text = $text;
 	}
 	
-	public function render()
+	public function show()
 	{
-		echo count(self::$data) > 0? str_replace(array_keys(self::$data), self::$data, $this->text) : $this->text;
+		echo $this->text;
 	}
 }
 ?>

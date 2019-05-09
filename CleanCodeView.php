@@ -3,18 +3,26 @@ require_once 'CleanCodeClass.php';
 
 abstract class CleanCodeView extends CleanCodeClass
 {
-	public static $data = array();
+	public $data = array();
+	
+	public function addData($array)
+	{
+	    foreach ($array as $var => $value)
+	    {
+	        $this->data[$var] = $value;
+	    }
+	}
 	
 	protected function setContentType($type)
 	{
-		header("Content-Type: $type");
+	    header("Content-Type: {$type}");
 	}
 	
-	public function clearData()
+	public function debugData()
 	{
-		self::$data = array();
+	    print_r($this->data);
 	}
 	
-	public abstract function render();
+	public abstract function show();
 }
 ?>

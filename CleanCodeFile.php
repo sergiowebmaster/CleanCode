@@ -17,13 +17,14 @@ class CleanCodeFile extends CleanCodeModel
 	protected $tmp_name  = '';
 	protected $type = '';
 	protected $size = 0;
+	protected $handle;
 	
 	public $ext	= '';
 	public $oldName = '';
 	
 	protected function getFolderPath()
 	{
-		return self::format(static::$path . $this->folder);
+		return static::$path . $this->folder;
 	}
 	
 	public function getFullPath()
@@ -33,7 +34,7 @@ class CleanCodeFile extends CleanCodeModel
 	
 	public static function setPath($path)
 	{
-		static::$path = CleanCodeDir::translate($path);
+		static::$path = CleanCodeDir::get($path);
 	}
 	
 	public static function prepareArray($files)
@@ -75,7 +76,7 @@ class CleanCodeFile extends CleanCodeModel
 	{
 		$name = self::format($name);
 		
-		if($this->validate($name, self::FILE))
+		if($this->validateData($name, self::FILE))
 		{
 			$parts = explode('.', $name);
 			$this->name = $name;
@@ -161,7 +162,7 @@ class CleanCodeFile extends CleanCodeModel
 	
 	public function createRandomName($length)
 	{
-		$this->setName(CleanCodeHelper::generateHash($length) . '.' . $this->ext);
+		$this->setName(self::generateHash($length) . '.' . $this->ext);
 	}
 	
 	protected function upload()
@@ -200,17 +201,52 @@ class CleanCodeFile extends CleanCodeModel
 		}
 	}
 	
-	public function getContent($vars = array())
+	protected function fopen($mode)
 	{
-		$handle = fopen($this->getFullPath(), 'r');
+	    $this->handle = file_exists($this->getFullPath())? fopen($this->getFullPath(), $mode) : false;
+	}
+	
+	protected function write($string)
+	{
+	    fwrite($this->handle, $string);
+	}
+	
+	protected function close()
+	{
+	    fclose($this->handle);
+	}
+	
+	public function writeLine($string)
+	{
+	    $this->fopen('a');
+	    $this->write($string);
+	    $this->close();
+	}
+	
+	public function getContent()
+	{
+	    $this->fopen('r');
 		$content = '';
 		
-		while ($line = fgets($handle))
+		if($this->handle)
 		{
-			$content .= $line;
+    		while ($line = fgets($this->handle))
+    		{
+    			$content .= $line;
+    		}
 		}
 		
-		return $vars && is_array($vars)? str_replace(array_keys($vars), $vars, $content) : $content;
+		return $content;
+	}
+	
+	public function getBase64()
+	{
+	    return base64_encode($this->getContent());
+	}
+	
+	public function getDynamicContent($vars)
+	{
+	    return str_replace(array_keys($vars), $vars, $this->getContent());
 	}
 	
 	public function setContent($data)

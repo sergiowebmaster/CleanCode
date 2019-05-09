@@ -3,58 +3,62 @@ class CleanCodeURI extends CleanCodeClass
 {
 	private $uri = '';
 	private $slugs = array();
-	private $last = array();
-	private $pageNumber = 1;
+	private $index = 0;
 	
 	function __construct($uri)
 	{
-		$this->uri = preg_replace('/(\/$)|(^[^a-z0-9-_\/]{1,}$)/', '', $uri);
-		$this->slugs = explode('/', $this->uri);
+		$this->set($uri);
+		$this->defineSlugs();
 	}
 	
-	private function implodeSlugs($slugs)
+	public static function parseArray($array)
 	{
-		return implode('/', $slugs);
+	    return join('/', $array);
+	}
+	
+	public static function format($uri)
+	{
+	    return preg_replace('/\/{1,}$/', '', $uri);
+	}
+	
+	private function set($uri)
+	{
+	    $this->uri = self::format($uri);
+	}
+	
+	private function defineSlugs()
+	{
+	    $this->slugs = explode('/', $this->uri);
+	}
+	
+	public function getSlugs()
+	{
+	    return $this->slugs;
+	}
+	
+	public function getSlug($index, $default = '')
+	{
+	    return self::searchPos($this->slugs, $index, $default);
 	}
 	
 	public function nextSlug($default = '')
 	{
-		if(count($this->slugs))
-		{
-			$this->last[] = array_shift($this->slugs);
-			return end($this->last);
-		}
-		else return $default;
-	}
-	
-	public function getPageNumber($default = 1)
-	{
-		return is_numeric(end($this->slugs))? array_pop($this->slugs) : $default;
-	}
-	
-	public function getLastSlugs()
-	{
-		return $this->last;
-	}
-	
-	public function getLast()
-	{
-		return $this->implodeSlugs($this->last);
-	}
-	
-	public function getBack()
-	{
-		return preg_replace('/(.*)(\/[\W\w]{1,}$)/', '$1', $this->uri);
+		return $this->getSlug($this->index++, $default);
 	}
 	
 	public function getSize()
 	{
-		return count($this->getLastSlugs());
+		return count($this->slugs);
+	}
+	
+	public function getBack()
+	{
+	    return self::parseArray(array_slice($this->slugs, 0, -1));
 	}
 	
 	public function toString()
 	{
-		return $this->uri;
+	    return $this->uri;
 	}
 }
 ?>

@@ -3,33 +3,80 @@ require_once 'CleanCodeFile.php';
 
 class CleanCodeImage extends CleanCodeFile
 {
-	private static $defaultMaxDim = 1600;
-	
-	private $height = 0;
 	private $width = 0;
-	private $maxDim = 0;
+	private $height = 0;
+	private $maxWidth = 1600;
+	private $maxHeigh = 1600;
+	private $dst_x = 0;
+	private $dst_y = 0;
+	private $src_x = 0;
+	private $src_y = 0;
 	private $thumbs = array();
+	private $cropParameters = array();
 	
 	function __construct($extensions = 'jpg|jpeg|gif|png')
 	{
 		parent::__construct($extensions);
 	}
 	
-	public function addThumb($maxDim, $folder)
+	public function setMaxWidth($pixels)
 	{
-		$thumb = new self();
-		$thumb->setPath($this->getFolderPath());
-		$thumb->setMaxDim($maxDim);
-		$thumb->setFolder($folder);
-		
-		$this->thumbs[$folder] = $thumb;
+	    if($pixels) $this->maxWidth = $pixels;
+	}
+	
+	public function setMaxHeight($pixels)
+	{
+	    if($pixels) $this->maxHeigh = $pixels;
+	}
+	
+	public function setMaxDim($pixels)
+	{
+	    $this->setMaxWidth($pixels);
+	    $this->setMaxHeight($pixels);
+	}
+	
+	public function crop($width, $height, $x = 0, $y = 0)
+	{
+	    if($width > 0 && $height > 0)
+	    {
+	        $this->cropParameters = array('x' => 0, 'y' => 0, 'width' => $width, 'height' => $height);
+	    }
+	}
+	
+	private function createThumb($folder, $maxWidth, $maxHeight, $cropWidth = 0, $cropHeight = 0, $cropX = 0, $cropY = 0)
+	{
+	    $thumb = new self();
+	    $thumb->setPath($this->getFolderPath());
+	    $thumb->setMaxWidth($maxWidth);
+	    $thumb->setMaxHeight($maxHeight);
+	    $thumb->setFolder($folder);
+	    
+	    return $thumb;
+	}
+	
+	private function createCroppedThumb($folder, $maxWidth, $maxHeight, $cropWidth, $cropHeight, $cropX, $cropY)
+	{
+	    $thumb = $this->createThumb($folder, $maxWidth, $maxHeight);
+	    $thumb->crop($cropWidth, $cropHeight, $cropX, $cropY);
+	    
+	    return $thumb;
+	}
+	
+	public function addThumb($folder, $maxWidth, $maxHeight)
+	{
+	    $this->thumbs[$folder] = $this->createThumb($folder, $maxWidth, $maxHeight);
+	}
+	
+	public function addCroppedThumb($folder, $maxWidth, $maxHeight, $cropWidth, $cropHeight, $cropX = 0, $cropY = 0)
+	{
+	    $this->thumbs[$folder] = $this->createCroppedThumb($folder, $maxWidth, $maxHeight, $cropWidth, $cropHeight, $cropX, $cropY);
 	}
 	
 	public function sendThumbs()
 	{
 		$sends = 0;
 		
-		foreach ($this->thumbs as $folder => $thumb)
+		foreach ($this->thumbs as $thumb)
 		{
 			$thumb->oldName = $this->oldName;
 			$thumb->setName($this->name);
@@ -57,79 +104,115 @@ class CleanCodeImage extends CleanCodeFile
 		return $sends == count($this->thumbs);
 	}
 	
-	public static function setDefaultMaxDim($maxDim)
+	private function setTransparency($newImage, $imageSource)
 	{
-		self::$defaultMaxDim = $maxDim;
+	    $transparencyIndex = imagecolortransparent($imageSource);
+	    $transparencyColor = array('red' => 255, 'green' => 255, 'blue' => 255);
+	    
+	    if($transparencyIndex >= 0)
+	    {
+	        $transparencyColor = imagecolorsforindex($imageSource, $transparencyIndex);
+	    }
+	    
+	    $transparencyIndex = imagecolorallocate($newImage, $transparencyColor['red'], $transparencyColor['green'], $transparencyColor['blue']);
+	    imagefill($newImage, 0, 0, $transparencyIndex);
+	    imagecolortransparent($newImage, $transparencyIndex);
 	}
 	
-	private function getMaxDim()
+	private function copyAndResampled($newImage, $imageSource, $width, $height)
 	{
-		return $this->maxDim? $this->maxDim : self::$defaultMaxDim;
+	    imagecopyresampled($newImage, $imageSource, $this->dst_x, $this->dst_y, $this->src_x, $this->src_y, $width, $height, $this->width, $this->height);
 	}
 	
-	public function setMaxDim($maxDimension)
+	private function copyAndResampledTransparency($newImage, $imageSource, $width, $height)
 	{
-		$this->maxDim = $maxDimension;
+	    $this->setTransparency($newImage, $imageSource);
+	    $this->copyAndResampled($newImage, $imageSource, $width, $height);
 	}
 	
-	private function resize($image)
+	private function resize($imageSource, $transparency)
 	{
-		if($this->width < $this->height)
-		{
-			$ratio	 = $this->width / $this->height;
-			$height	 = $this->getMaxDim();
-			$width	 = round($this->getMaxDim() * $ratio);
-		}
-		else
-		{
-			$ratio	 = $this->height / $this->width;
-			$height	 = round($this->getMaxDim() * $ratio);
-			$width	 = $this->getMaxDim();
-		}
-			
-		$newImage = imagecreatetruecolor($width, $height);
-		imagecopyresampled($newImage, $image, 0, 0, 0, 0, $width, $height, $this->width, $this->height);
+	    $width	 = $this->width;
+	    $height	 = $this->height;
+	    
+	    if ($width > $this->maxWidth)
+	    {
+	        $height = $height * ($this->maxWidth / $width);
+	        $width = $this->maxWidth;
+	    }
+	    
+	    if ($height > $this->maxHeigh)
+	    {
+	        $width = $width * ($this->maxHeigh / $height);
+	        $height = $this->maxHeigh;
+	    }
 		
-		return $newImage;
+		$newImage = imagecreatetruecolor($width, $height);
+		$transparency? $this->copyAndResampledTransparency($newImage, $imageSource, $width, $height) : $this->copyAndResampled($newImage, $imageSource, $width, $height);
+		
+		return $this->cropParameters? imagecrop($newImage, $this->cropParameters) : $newImage;
+	}
+	
+	private function createJPEG()
+	{
+	    return imagejpeg($this->resize(imagecreatefromjpeg($this->tmp_name), false), $this->getFullPath());
+	}
+	
+	private function createPNG()
+	{
+	    return imagepng($this->resize(imagecreatefrompng($this->tmp_name), true), $this->getFullPath());
+	}
+	
+	private function createGIF()
+	{
+	    return imagegif($this->resize(imagecreatefromgif($this->tmp_name), true), $this->getFullPath());
+	}
+	
+	private function createBMP()
+	{
+	    return imagebmp($this->resize(imagecreatefrombmp($this->tmp_name), false), $this->getFullPath());
 	}
 	
 	private function create()
 	{
-		$ext = $this->ext == 'jpg'? 'jpeg' : $this->ext;
-		$create = 'imagecreatefrom' . $ext;
-		$output = 'image'.$ext;
-		
-		if(!is_dir($this->getFolderPath()))
+		switch ($this->ext)
 		{
-			mkdir($this->getFolderPath(), 0777);
+		    case 'jpg':
+		    case 'jpeg':
+		        return $this->createJPEG();
+		        break;
+		        
+		    case 'png':
+		        return $this->createPNG();
+		        break;
+		        
+		    case 'gif':
+		        return $this->createGIF();
+		        break;
+		        
+		    case 'bmp':
+		        return $this->createBMP();
+		        break;
+		        
+		    default:
+		        return false;
 		}
-		
-		if(is_callable($create) && is_callable($output))
-		{
-			$image = $create($this->tmp_name);
-			$newImage = $this->resize($image);
-			
-			return $output($newImage, $this->getFullPath());
-		}
-		else
-		{
-			$this->setError('Tipo de imagem inválido!');
-			return false;
-		}
+	}
+	
+	private function loadDimensions()
+	{
+	    list($this->width, $this->height) = getimagesize($this->tmp_name);
+	}
+	
+	private function analyseDimensions()
+	{
+	    return ($this->width > $this->maxWidth || $this->height > $this->maxHeigh)? $this->create() : parent::upload();
 	}
 	
 	protected function upload()
 	{
-		list($this->width, $this->height) = getimagesize($this->tmp_name);
-			
-		if(($this->width > $this->getMaxDim() || $this->height > $this->getMaxDim()))
-		{
-			return $this->create();
-		}
-		else
-		{
-			return parent::upload();
-		}
+		$this->loadDimensions();
+		return $this->analyseDimensions();
 	}
 	
 	public function send()

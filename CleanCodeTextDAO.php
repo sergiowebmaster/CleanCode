@@ -1,5 +1,7 @@
 <?php
-class CleanCodeDaoText extends CleanCodeDaoUri
+require_once 'CleanCodeDaoUri.php';
+
+class CleanCodeTextDAO extends CleanCodeDaoUri
 {
 	protected static $table = 'texts';
 	
@@ -10,7 +12,7 @@ class CleanCodeDaoText extends CleanCodeDaoUri
 	
 	public function setTitle($title)
 	{
-		$this->set_column('title', $title, self::ALL, 1, 200);
+		$this->set_column('title', $title, self::TEXT, 1, 60);
 		$this->setUri(self::parseURI($title));
 	}
 	
@@ -21,7 +23,7 @@ class CleanCodeDaoText extends CleanCodeDaoUri
 	
 	public function setDescription($description)
 	{
-		$this->set_column('description', $description, self::ALL, 1, 140);
+		$this->set_column('description', $description, self::TEXT, 1, 140);
 	}
 	
 	public function getKeywords()
@@ -31,7 +33,7 @@ class CleanCodeDaoText extends CleanCodeDaoUri
 	
 	public function setKeywords($keywords)
 	{
-		$this->set_column('keywords', $keywords, self::ALL, 1, 200);
+		$this->set_column('keywords', $keywords, self::TEXT, 1, 200);
 	}
 	
 	public function getContent()

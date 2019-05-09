@@ -8,9 +8,9 @@ class CleanCodeJsonView extends CleanCodeView
 		$this->setContentType('text/plain');
 	}
 	
-	public function render()
+	public function show()
 	{
-		echo json_encode(self::$data);
+		echo json_encode($this->data);
 	}
 }
 ?>

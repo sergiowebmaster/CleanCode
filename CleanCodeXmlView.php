@@ -1,8 +1,9 @@
 <?php
+require_once 'CleanCodeView.php';
+
 class CleanCodeXmlView extends CleanCodeView
 {
 	public $version = '1.0';
-	public $encoding = 'UTF-8';
 	
 	function __construct()
 	{
@@ -26,10 +27,10 @@ class CleanCodeXmlView extends CleanCodeView
 		return $retorno;
 	}
 	
-	public function render()
+	public function show()
 	{
-		echo '<?xml version="'.$this->version.'" encoding="'.$this->encoding.'"?>';
-		echo $this->convertData(self::$data);
+		echo '<?xml version="' . $this->version . '" encoding="' . self::$encoding . '"?>';
+		echo $this->convertData($this->data);
 	}
 }
 ?>

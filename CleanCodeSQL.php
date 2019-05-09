@@ -1,288 +1,229 @@
 <?php
+require_once 'CleanCodeClass.php';
+
 class CleanCodeSQL extends CleanCodeClass
 {
-	protected $table = '';
-	protected $statement = '';
-	protected $values = array();
-	protected $result;
-	protected $pdo;
+    protected static $pdo;
+    
+    protected $table = '';
+    protected $sql = array();
+	protected $statement;
 	
-	function __construct($dns, $host, $database, $user, $password)
+	public static function openConnection($driver, $host, $database, $user, $password)
 	{
-		try
-		{
-			$this->pdo = new PDO("$dns:host=$host;dbname=$database", $user, $password);
-			$this->setNames('utf8');
-		}
-		catch (Exception $e)
-		{
-			die('Erro ao conectar com o Banco de Dados.');
-		}
+	    try
+	    {
+	        self::$pdo = new PDO("$driver:host=$host;dbname=$database", $user, $password);
+	    }
+	    catch (Exception $e)
+	    {
+	        die('Erro ao conectar com o Banco de Dados.');
+	    }
 	}
 	
-	public function setTable($table)
+	public static function closeConnection()
 	{
-		$this->table = $table;
-		return $this;
+	    self::$pdo = null;
 	}
 	
-	public function prepare($string)
+	public static function getLastID()
 	{
-		$this->statement = $string;
-		return $this;
+	    return self::$pdo->lastInsertId();
 	}
 	
-	public function add($sql)
+	function __construct($table)
 	{
-		$this->statement .= ' ' . $sql;
-		return $this;
+	    $this->table = $table;
 	}
 	
-	protected function addValue($value)
+	private function mergeClauses($array)
 	{
-		return $this->add(is_string($value)? "'$value'" : $value);
-	}
-	
-	protected function addField($field, $signal, $value)
-	{
-		return $this->add($field)->add($signal)->addValue($value);
-	}
-	
-	protected function addData($data, $glue)
-	{
-		$fields = array();
-		
-		foreach ($data as $field => $value)
-		{
-			$fields[] = "$field=:$field";
-			$this->values[$field] = $value;
-		}
-		
-		return $this->add(join($glue, $fields));
+	    $query = array();
+	    
+	    foreach ($array as $clause)
+	    {
+	        $query[] = is_array($clause)? $this->mergeClauses($clause) : $clause;
+	    }
+	    
+	    return join($query, ' ');
 	}
 	
 	public function toString()
 	{
-		return $this->statement;
+	    return $this->mergeClauses($this->sql);
 	}
 	
-	public function sub($sql)
+	protected function add($sql, $index)
 	{
-		return $this->add("($sql)");
+	    $this->sql[$index][] = $sql;
+	    return $this;
 	}
 	
-	public function select($fields = '*')
+	protected function getCurrentIndex()
 	{
-		return $this->prepare("SELECT $fields FROM $this->table");
+	    return key($this->sql);
 	}
 	
-	public function selectCount()
+	public static function setNames($charset)
 	{
-		return $this->select('COUNT(*) n');
+	    return self::$pdo->query("SET NAMES $charset");
 	}
 	
-	public function count($condition)
+	private function parseData($data)
 	{
-		return $this->selectCount()->where($condition)->fetch();
+	    $fields = array();
+	    
+	    foreach ($data as $field => $value)
+	    {
+	        $fields[] = $field . '=' . (is_string($value)? "'$value'" : $value);
+	    }
+	    
+	    return $fields;
 	}
 	
-	public function countAll()
+	private function joinData($data, $separator)
 	{
-		return $this->count('1');
+	    return join($separator, $data);
 	}
 	
-	private function join($type, $table, $on)
+	private function joinFields($data, $separator)
 	{
-		return $this->add("$type JOIN $table ON $on");
+	    return $this->joinData(array_keys($data), $separator);
 	}
 	
-	public function innerJoin($table, $on)
+	protected function addNot()
 	{
-		return $this->join('INNER', $table, $on);
-	}
-	
-	public function leftJoin($table, $on)
-	{
-		return $this->join('LEFT', $table, $on);
-	}
-	
-	public function rightJoin($table, $on)
-	{
-		return $this->join('RIGHT', $table, $on);
-	}
-	
-	protected function joinInsertData($data)
-	{
-		$fields = array_keys($data);
-		$this->values = $data;
-		
-		return $this->sub(join(', ', $fields))->add('VALUES')->sub(':' . join(', :', $fields));
-	}
-	
-	public function insert($data)
-	{
-		return $this->prepare('INSERT INTO')->add($this->table)->joinInsertData($data);
-	}
-	
-	public function update($data)
-	{
-		return $this->prepare('UPDATE')->add($this->table)->add('SET')->addData($data, ',');
-	}
-	
-	public function delete()
-	{
-		return $this->prepare('DELETE FROM')->add($this->table);
-	}
-	
-	public function where($condition)
-	{
-		return $this->add('WHERE')->add($condition);
-	}
-	
-	public function andWhere($condition)
-	{
-		return $this->add('AND')->add($condition);
-	}
-	
-	public function orWhere($condition)
-	{
-		return $this->add('OR')->add($condition);
+	    return $this->add('NOT', $this->getCurrentIndex());
 	}
 	
 	protected function andData($data)
 	{
-		foreach ($data as $field => $value)
-		{
-			$this->andWhere($field)->add('=')->addValue($value);
-		}
-		
-		return $this;
+	    return $this->joinData($data, ' AND ');
 	}
 	
 	protected function orData($data)
 	{
-		foreach ($data as $field => $value)
-		{
-			$this->orWhere($field)->add('=')->addValue($value);
-		}
-		
-		return $this;
+	    return $this->joinData($data, ' OR ');
+	}
+	
+	public function insert($data)
+	{
+	    return $this->add("INSERT INTO {$this->table} ({$this->joinFields($data, ',')}) VALUES ('{$this->joinData($data, "','")}')", 0);
+	}
+	
+	public function select($fields = '*')
+	{
+	    return $this->add("SELECT $fields FROM {$this->table}", 0);
+	}
+	
+	public function selectCount($field, $alias)
+	{
+	    return $this->select("COUNT($field) $alias");
+	}
+	
+	protected function addJoin($type, $table, $on)
+	{
+	    return $this->add("$type JOIN $table ON $on", 0);
+	}
+	
+	public function innerJoin($table, $on)
+	{
+	    return $this->addJoin('INNER', $table, $on);
+	}
+	
+	public function leftJoin($table, $on)
+	{
+	    return $this->addJoin('LEFT', $table, $on);
+	}
+	
+	public function rightJoin($table, $on)
+	{
+	    return $this->addJoin('RIGHT', $table, $on);
+	}
+	
+	public function crossJoin($table, $on)
+	{
+	    return $this->addJoin('CROSS', $table, $on);
+	}
+	
+	public function update($stringData)
+	{
+	    return $this->add("UPDATE {$this->table} SET $stringData", 0);
+	}
+	
+	public function updateData($data)
+	{
+	    return $this->update($this->joinFields($this->parseData($data), ','));
+	}
+	
+	public function delete()
+	{
+	    return $this->add("DELETE FROM {$this->table}", 0);
+	}
+	
+	public function where($condition)
+	{
+	    return $this->add("WHERE $condition", 1);
 	}
 	
 	public function whereData($data)
 	{
-		return $this->where(1)->andData($data);
+	    return $this->where($data? $this->andData($this->parseData($data)) : 1);
 	}
 	
-	public function like($keyword)
+	public function whereAnd($arg1, $arg2)
 	{
-		return $this->add('LIKE')->add('"'.$keyword.'"');
+	    return $this->where($this->andData(func_get_args()));
 	}
 	
-	public function likeBegin($keyword)
+	public function whereOr($arg1, $arg2)
 	{
-		return $this->like("$keyword%");
+	    return $this->where($this->orData(func_get_args()));
 	}
 	
-	public function likeEnd($keyword)
+	public function like($data)
 	{
-		return $this->like("%$keyword");
-	}
-	
-	public function likeBoth($keyword)
-	{
-		return $this->like("%$keyword%");
+	    return $this->add("LIKE '$data'", 1);
 	}
 	
 	public function groupBy($fields)
 	{
-		return $this->add('GROUP BY')->add($fields);
+	    return $this->add("GROUP BY $fields", 2);
 	}
 	
-	public function orderBy($fields)
+	public function orderBy($field)
 	{
-		return $this->add('ORDER BY')->add($fields);
-	}
-	
-	public function addOrderBy($fields, $desc)
-	{
-		return $desc? $this->orderBy($fields)->desc() : $this->orderBy($fields);
-	}
-	
-	public function orderByRand()
-	{
-		return $this->orderBy('RAND()');
+	    return $this->add("ORDER BY $field", 3);
 	}
 	
 	public function desc()
 	{
-		return $this->add('DESC');
+	    return $this->add('DESC', 3);
 	}
 	
-	public function limit($quantity, $init = 0)
+	public function limit($max, $min = 0)
 	{
-		return $this->add('LIMIT')->add("$init,$quantity");
-	}
-	
-	public function paginate($qtyPerPage, $pageNumber)
-	{
-		return $this->limit($qtyPerPage, ($pageNumber - 1) * $qtyPerPage);
+	    return $this->add("LIMIT $min,$max", 4);
 	}
 	
 	public function execute()
 	{
-		$this->result = $this->pdo->prepare($this->statement);
-		return $this->result->execute($this->values);
+	    return self::$pdo? self::$pdo->query($this->toString()) : null;
 	}
-	
-	public function getLastError()
-	{
-		$errorInfo = $this->result->errorInfo();
-		return $errorInfo[2]? $errorInfo[2] : '';
-	}
-	
-	public function lastInsertId()
-	{
-		return $this->pdo->lastInsertId();
-	} 
 	
 	public function fetch()
 	{
-		$this->execute();
-		return $this->result->fetch(PDO::FETCH_ASSOC);
+	    return (self::$pdo && $query = $this->execute())? $query->fetch(PDO::FETCH_ASSOC) : array();
 	}
 	
 	public function fetchAll()
 	{
-		$this->execute();
-		return $this->result->fetchAll(PDO::FETCH_ASSOC);
+	    return (self::$pdo && $query = $this->execute())? $query->fetchAll(PDO::FETCH_ASSOC) : array();
 	}
 	
-	public function fetchBy($fields, $desc = false)
+	public static function getErrorInfo($index = 2)
 	{
-		return $this->addOrderBy($fields, $desc)->fetchAll();
-	}
-	
-	public function getRowCount()
-	{
-		return $this->result->rowCount();
-	}
-	
-	public function setNames($charset)
-	{
-		$this->pdo->query("SET NAMES $charset");
-	}
-	
-	public function close()
-	{
-		$this->pdo = null;
-	}
-	
-	protected function debug()
-	{
-		echo $this->toString();
-		echo '<br>("' . join('", "', $this->values) . '")';
-		echo '<br>';
+	    return self::searchPos(self::$pdo->errorInfo(), $index);
 	}
 }
 ?>

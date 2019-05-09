@@ -24,7 +24,7 @@ class CleanCodeEmail extends CleanCodeModel
 	
 	public function setFromEmail($email, $required = true)
 	{
-		if($this->validate($email, self::EMAIL))
+		if($this->validateData($email, self::EMAIL))
 		{
 			$this->from_email = $email;
 		}
@@ -41,7 +41,7 @@ class CleanCodeEmail extends CleanCodeModel
 	
 	public function setFromName($name)
 	{
-		if($this->validate($name, self::ALL, 1))
+		if($this->validateData($name, self::ALL, 1))
 		{
 			$this->from_name = $name;
 		}
@@ -64,7 +64,7 @@ class CleanCodeEmail extends CleanCodeModel
 	
 	public function setToEmail($email)
 	{
-		if($this->validate($email, self::EMAIL))
+		if($this->validateData($email, self::EMAIL))
 		{
 			$this->to_email = $email;
 		}
@@ -81,7 +81,7 @@ class CleanCodeEmail extends CleanCodeModel
 	
 	public function setToName($name)
 	{
-		if($this->validate($name, self::ALL, 1))
+		if($this->validateData($name, self::ALL, 1))
 		{
 			$this->to_name = $name;
 		}

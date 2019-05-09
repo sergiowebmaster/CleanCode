@@ -1,4 +1,6 @@
 <?php
+require_once 'CleanCodeView.php';
+
 class CleanCodeHtmlView extends CleanCodeView
 {
 	private $filename = '';
@@ -6,18 +8,13 @@ class CleanCodeHtmlView extends CleanCodeView
 	function __construct($filename)
 	{
 		$this->setContentType('text/html');
-		$this->setFilename($filename);
+		$this->filename = $filename;
 	}
 	
-	protected function setFilename($filename)
+	public function show()
 	{
-		$this->filename = CleanCodeDir::translate($filename);
-	}
-	
-	public function render()
-	{
-		extract(self::$data);
-		include $this->filename;
+	    extract($this->data);
+	    include $this->filename;
 	}
 }
 ?>
